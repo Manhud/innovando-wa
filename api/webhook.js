@@ -36,18 +36,18 @@ module.exports = async (req, res) => {
       template: {
         name: "hello_world",
         language: { code: "en_US" },
-        components: [
-          { 
-            type: "body", 
-            parameters: [
-              { type: "text", text: customerName },
-              { type: "text", text: `#${order.order_number}` }, // Usando el número de orden
-              { type: "text", text: totalAmount },
-              { type: "text", text: city },
-              { type: "text", text: address }
-            ]
-          }
-        ]
+        // components: [
+        //   { 
+        //     type: "body", 
+        //     parameters: [
+        //       { type: "text", text: customerName },
+        //       { type: "text", text: `#${order.order_number}` }, // Usando el número de orden
+        //       { type: "text", text: totalAmount },
+        //       { type: "text", text: city },
+        //       { type: "text", text: address }
+        //     ]
+        //   }
+        // ]
       }
     };
 
