@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
       to: "573232205135",
       type: "template",
       template: {
-        name: "confirmar_pedido",
+        name: "confirmar",
         language: { code: "es_MX" },
         components: [
           { 
