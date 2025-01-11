@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
       type: "template",
       template: {
         name: "hello_world",
-        language: { code: "es_MX" },
+        language: { code: "en_US" },
         components: [
           { 
             type: "body", 
