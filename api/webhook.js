@@ -17,31 +17,32 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "Datos del pedido incompletos." });
     }
 
-    const customerName = order.customer.first_name || "Cliente";
-    const customerPhone = order.customer.phone || "";
-    const orderId = order.id || "Sin ID";
-    const totalAmount = order.total_price || "0.00";
-    const city = order.shipping_address.city || "Ciudad desconocida";
-    const address = order.shipping_address.address1 || "Dirección desconocida";
+    const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || "Cliente";
+    const pedido = order.line_items
+      ?.map(item => `${item.quantity}x ${item.name}`)
+      .join(", ") || "productos";
+    const totalAmount = new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(order.total_price || 0);
 
-    if (!customerPhone) {
-      return res.status(400).json({ error: "Número de teléfono no proporcionado." });
-    }
+    const city = order.shipping_address?.city || "Ciudad desconocida";
+    const address = order.shipping_address?.address1 || "Dirección desconocida"
 
     const message = {
       messaging_product: "whatsapp",
-      to: "3232205135",
+      to: "573232205135",
       type: "template",
       template: {
-        name: "confirma_tu_pedido",
-        language: { code: "es" },
+        name: "confirmar_pedido",
+        language: { code: "es_MX" },
         components: [
           { 
             type: "body", 
             parameters: [
               { type: "text", text: customerName },
-              { type: "text", text: orderId },
-              { type: "text", text: `$${totalAmount}` },
+              { type: "text", text: `#${order.order_number}` }, // Usando el número de orden
+              { type: "text", text: totalAmount },
               { type: "text", text: city },
               { type: "text", text: address }
             ]
