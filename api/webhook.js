@@ -34,20 +34,20 @@ module.exports = async (req, res) => {
       to: "573232205135",
       type: "template",
       template: {
-        name: "hello_world",
-        language: { code: "en_US" },
-        // components: [
-        //   { 
-        //     type: "body", 
-        //     parameters: [
-        //       { type: "text", text: customerName },
-        //       { type: "text", text: `#${order.order_number}` }, // Usando el número de orden
-        //       { type: "text", text: totalAmount },
-        //       { type: "text", text: city },
-        //       { type: "text", text: address }
-        //     ]
-        //   }
-        // ]
+        name: "confirmar_pedido",
+        language: { code: "es_MX" },
+        components: [
+          { 
+            type: "body", 
+            parameters: [
+              { type: "text", text: customerName },
+              { type: "text", text: `#${order.order_number}` }, // Usando el número de orden
+              { type: "text", text: totalAmount },
+              { type: "text", text: city },
+              { type: "text", text: address }
+            ]
+          }
+        ]
       }
     };
 
