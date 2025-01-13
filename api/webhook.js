@@ -31,20 +31,21 @@ module.exports = async (req, res) => {
 
     const message = {
       messaging_product: "whatsapp",
+      "recipient_type": "individual",
       to: "573232205135",
       type: "template",
       template: {
-        name: "confirmar",
-        language: { code: "es_MX" },
+        name: "validate_order",
+        language: { code: "es" },
         components: [
           { 
             type: "body", 
             parameters: [
-              { type: "text", text: customerName },
-              { type: "text", text: pedido },
-              { type: "text", text: totalAmount },
-              { type: "text", text: city },
-              { type: "text", text: address }
+              { type: "text", text: customerName, parameter_name: "nombre" },
+              { type: "text", text: pedido, parameter_name: "pedido" },
+              { type: "text", text: totalAmount, parameter_name: "total" },
+              { type: "text", text: city, parameter_name: "ciudad" },
+              { type: "text", text: address, parameter_name: "direccion" }
             ]
           }
         ]
