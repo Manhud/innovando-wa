@@ -30,16 +30,27 @@ module.exports = async (req, res) => {
     const address = order.shipping_address?.address1 || "Dirección desconocida"
 
     const message = {
-    "messaging_product": "whatsapp",
-    "to": "573232205135",
-    "type": "template",
-    "template": {
-        "name": "hello_world",
-        "language": {
-            "code": "en_US"
-        }
-    }
-}
+      messaging_product: "whatsapp",
+      "recipient_type": "individual",
+      to: "573232205135",
+      type: "template",
+      template: {
+        name: "validate_order",
+        language: { code: "es" },
+        components: [
+          { 
+            type: "body", 
+            parameters: [
+              { type: "text", text: customerName, parameter_name: "nombre" },
+              { type: "text", text: pedido, parameter_name: "pedido" },
+              { type: "text", text: totalAmount, parameter_name: "total" },
+              { type: "text", text: city, parameter_name: "ciudad" },
+              { type: "text", text: address, parameter_name: "direccion" }
+            ]
+          }
+        ]
+      }
+    };
 
     const response = await fetch(
       `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
