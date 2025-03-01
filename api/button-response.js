@@ -31,6 +31,7 @@ export default async function handler(req, res) {
       
       const message = data.entry[0].changes[0].value.messages[0];
       const from = message.from; // Número del cliente
+      console.log(message)
       
       console.log('Mensaje recibido de:', from);
       console.log('Tipo de mensaje:', message.type);
