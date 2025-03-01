@@ -59,22 +59,18 @@ app.get('/', (req, res) => {
   res.status(200).send('Servidor funcionando correctamente. <a href="/orders">Ver pedidos</a>');
 });
 
-// Iniciar servidor
-async function startServer() {
-  try {
-    // Conectar a la base de datos
-    await connectToDatabase();
-    
-    // Iniciar el servidor
-    app.listen(PORT, () => {
-      console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-      console.log(`Gestión de pedidos disponible en http://localhost:${PORT}/orders`);
-    });
-  } catch (error) {
-    console.error('Error al iniciar el servidor:', error);
-    process.exit(1);
-  }
+// Conectar a la base de datos al iniciar
+connectToDatabase().catch(err => {
+  console.error('Error al conectar a la base de datos:', err);
+});
+
+// Para entornos de desarrollo local
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+    console.log(`Gestión de pedidos disponible en http://localhost:${PORT}/orders`);
+  });
 }
 
-// Ejecutar la función de inicio
-startServer(); 
+// Exportar la aplicación para Vercel
+module.exports = app; 
