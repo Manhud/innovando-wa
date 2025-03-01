@@ -1,10 +1,41 @@
 require('dotenv').config();
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const path = require('path');
 const ejsLayouts = require('express-ejs-layouts');
+
+// Variable para almacenar la conexión
+let cachedDb = null;
+
+// Función para conectar a MongoDB
+async function connectToDatabase() {
+  if (cachedDb) {
+    return cachedDb;
+  }
+  
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/innovando_wa';
+  
+  // Opciones de conexión optimizadas para serverless
+  const options = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000, // Timeout más corto para la selección del servidor
+    socketTimeoutMS: 45000, // Timeout para operaciones de socket
+  };
+  
+  try {
+    const client = await mongoose.connect(MONGODB_URI, options);
+    console.log('Conectado a MongoDB');
+    cachedDb = client;
+    return client;
+  } catch (error) {
+    console.error('Error conectando a MongoDB:', error);
+    throw error;
+  }
+}
 
 // Inicializar la aplicación Express
 const app = express();
@@ -21,12 +52,6 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(ejsLayouts);
 app.set('layout', 'layout');
-
-// Conexión a MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/innovando_wa';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Conectado a MongoDB'))
-  .catch(err => console.error('Error conectando a MongoDB:', err));
 
 // Definir el modelo de Mensaje
 const mensajeSchema = new mongoose.Schema({
@@ -86,12 +111,26 @@ const models = {
 // Exportar los modelos para usarlos en otros archivos
 app.locals.models = models;
 
+// Middleware para asegurar la conexión a MongoDB antes de cada solicitud
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    req.models = models;
+    next();
+  } catch (error) {
+    console.error('Error conectando a MongoDB:', error);
+    res.status(500).json({ error: 'Error de conexión a la base de datos' });
+  }
+});
+
 // Rutas para la API de WhatsApp
 const apiRoutes = require('./routes/api');
-app.use('/api', (req, res, next) => {
-  req.models = models;
-  next();
-}, apiRoutes);
+app.use('/api', apiRoutes);
+
+// Ruta de verificación rápida para Vercel
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Servidor funcionando correctamente' });
+});
 
 // Rutas para la interfaz web
 app.get('/', async (req, res) => {
@@ -196,6 +235,9 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
   });
 }
+
+// Inicializar la conexión a MongoDB al inicio
+connectToDatabase().catch(console.error);
 
 // Exportar la aplicación para Vercel
 module.exports = app; 

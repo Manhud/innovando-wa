@@ -1,9 +1,8 @@
-import { sendTextMessage } from '../utils/whatsapp-api';
+const { sendTextMessage } = require('../utils/whatsapp-api');
 
-export default async function handler(req, res) {
-  // Siempre responder con 200 OK para evitar que Meta reintente constantemente
-  // Esto es una práctica recomendada para webhooks de WhatsApp
-  const respondSuccess = () => res.status(200).json({ status: 'ok' });
+module.exports = async function handler(req, res) {
+  // Responder inmediatamente para evitar timeouts en Vercel
+  res.status(200).json({ status: 'ok' });
 
   if (req.method === 'GET') {
     const mode = req.query['hub.mode'];
@@ -17,17 +16,15 @@ export default async function handler(req, res) {
       return res.status(200).send(challenge);
     }
     console.error('Verificación de webhook fallida: token inválido o modo incorrecto');
-    return res.status(403).end();
+    return;
   }
 
   if (req.method !== 'POST') {
     console.error(`Método no permitido: ${req.method}`);
-    return res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   try {
-    console.log('Button handler recibido:', JSON.stringify(req.body, null, 2));
-    
     const data = req.body;
     
     // Verificar si hay mensajes en la solicitud (formato estándar de webhook)
@@ -40,17 +37,16 @@ export default async function handler(req, res) {
       const from = message.from; // Número del cliente
       
       console.log('Mensaje recibido de:', from);
-      console.log('Tipo de mensaje:', message.type);
       
       // Manejar respuesta de botón directa (formato antiguo)
       if (message.type === 'interactive' && message.interactive.type === 'button_reply') {
         const buttonText = message.interactive.button_reply.title;
-        await handleButtonResponse(from, buttonText);
+        handleButtonResponse(from, buttonText);
       }
       // Manejar el nuevo formato de respuesta de botón
       else if (message.type === 'button') {
         const buttonText = message.button.text;
-        await handleButtonResponse(from, buttonText);
+        handleButtonResponse(from, buttonText);
       }
     } 
     // Manejar formato alternativo de respuesta de botón (como el que mostraste)
@@ -58,19 +54,14 @@ export default async function handler(req, res) {
       const from = data.from;
       const buttonText = data.button.text || data.button.payload;
       console.log('Botón presionado (formato alternativo):', buttonText);
-      await handleButtonResponse(from, buttonText);
+      handleButtonResponse(from, buttonText);
     } else {
       console.log('Formato de mensaje no reconocido o sin mensajes');
     }
-    
-    // Siempre responder con 200 OK
-    return respondSuccess();
   } catch (error) {
-    console.error('Error procesando botones:', error);
-    // Aún así respondemos con 200 para que Meta no reintente
-    return respondSuccess();
+    console.error('Error procesando botones:', error.message || error);
   }
-}
+};
 
 /**
  * Maneja las respuestas de botones y envía mensajes personalizados
@@ -121,7 +112,7 @@ async function handleButtonResponse(from, buttonText) {
     }
     console.log('Respuesta de botón procesada exitosamente');
   } catch (error) {
-    console.error(`Error al manejar la respuesta del botón "${buttonText}":`, error);
+    console.error(`Error al manejar la respuesta del botón "${buttonText}":`, error.message || error);
     // No propagamos el error para evitar que falle todo el webhook
   }
 }

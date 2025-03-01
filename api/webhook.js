@@ -1,22 +1,23 @@
 module.exports = async (req, res) => {
-  // Verificar método
+  // Responder inmediatamente para evitar timeouts en Vercel
+  res.status(200).json({ message: "Webhook recibido" });
+  
+  // Verificar método - solo para logging, ya respondimos arriba
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    console.log('Método no permitido:', req.method);
+    return;
   }
-
-  // Configurar CORS si es necesario
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
     const order = req.body;
-    console.log('Orden recibida:', order);
-
+    
+    // Validación básica
     if (!order || !order.customer || !order.shipping_address) {
-      return res.status(400).json({ error: "Datos del pedido incompletos." });
+      console.error("Datos del pedido incompletos.");
+      return;
     }
 
+    // Procesamiento asíncrono después de responder al cliente
     const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || "Cliente";
     const pedido = order.line_items
       ?.map(item => `${item.quantity}x ${item.name}`)
@@ -52,30 +53,34 @@ module.exports = async (req, res) => {
       }
     };
 
-    const response = await fetch(
-      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify(message),
-      }
-    );
+    // Usar la función optimizada de whatsapp-api.js
+    const { sendTextMessage } = require('../utils/whatsapp-api');
+    
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify(message),
+          // Añadir timeout para evitar bloqueos
+          timeout: 5000
+        }
+      );
 
-    if (response.ok) {
-      return res.status(200).json({ message: "Mensaje enviado correctamente." });
-    } else {
-      const errorDetails = await response.json();
-      console.error("Error en la respuesta de WhatsApp:", errorDetails);
-      return res.status(500).json({
-        message: "Error al enviar el mensaje de WhatsApp.",
-        details: errorDetails,
-      });
+      if (response.ok) {
+        console.log("Mensaje enviado correctamente.");
+      } else {
+        const errorDetails = await response.json();
+        console.error("Error en la respuesta de WhatsApp:", errorDetails);
+      }
+    } catch (error) {
+      console.error("Error al enviar mensaje a WhatsApp:", error.message || error);
     }
   } catch (error) {
-    console.error("Error en el servidor:", error);
-    return res.status(500).json({ error: "Error en el servidor." });
+    console.error("Error en el procesamiento del webhook:", error.message || error);
   }
 };

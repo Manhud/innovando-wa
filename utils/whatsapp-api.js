@@ -9,14 +9,13 @@ const fetch = require('node-fetch');
  * @returns {Promise<object>} - Respuesta de la API
  */
 async function sendTextMessage(to, message, retryCount = 0) {
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY = 1000; // 1 segundo
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 500; // 500 ms
 
   try {
     console.log(`Intentando enviar mensaje a ${to} (intento ${retryCount + 1}/${MAX_RETRIES + 1})`);
     
     const url = `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`;
-    console.log(`URL de la API: ${url}`);
     
     const body = {
       messaging_product: "whatsapp",
@@ -28,7 +27,11 @@ async function sendTextMessage(to, message, retryCount = 0) {
       }
     };
     
-    console.log(`Cuerpo de la solicitud: ${JSON.stringify(body)}`);
+    // Reducir el logging para mejorar el rendimiento
+    if (retryCount === 0) {
+      console.log(`URL de la API: ${url}`);
+      console.log(`Cuerpo de la solicitud: ${JSON.stringify(body)}`);
+    }
     
     const response = await fetch(
       url,
@@ -39,8 +42,8 @@ async function sendTextMessage(to, message, retryCount = 0) {
           'Authorization': `Bearer ${process.env.ACCESS_TOKEN}`,
         },
         body: JSON.stringify(body),
-        // Añadir timeout para evitar que la solicitud se quede colgada
-        timeout: 8000
+        // Reducir el timeout para evitar bloqueos largos
+        timeout: 5000
       }
     );
 
@@ -51,13 +54,13 @@ async function sendTextMessage(to, message, retryCount = 0) {
     }
 
     const responseData = await response.json();
-    console.log('Mensaje enviado exitosamente:', responseData);
+    console.log('Mensaje enviado exitosamente:', responseData.messages?.[0]?.id || 'ID no disponible');
     return responseData;
   } catch (error) {
-    console.error(`Error sending text message (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, error);
+    console.error(`Error sending text message (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, error.message);
     
     // Si es un error de red y no hemos excedido los reintentos, intentar de nuevo
-    if ((error.code === 'UND_ERR_SOCKET' || error.message?.includes('fetch failed') || error.cause?.code === 'UND_ERR_SOCKET') 
+    if ((error.code === 'UND_ERR_SOCKET' || error.message?.includes('fetch failed') || error.cause?.code === 'UND_ERR_SOCKET' || error.type === 'request-timeout') 
         && retryCount < MAX_RETRIES) {
       console.log(`Reintentando en ${RETRY_DELAY}ms...`);
       
@@ -69,8 +72,9 @@ async function sendTextMessage(to, message, retryCount = 0) {
     }
     
     // Si hemos agotado los reintentos o es otro tipo de error, registrar y propagar
-    console.error('Error final después de reintentos o error no recuperable:', error);
-    throw error;
+    console.error('Error final después de reintentos o error no recuperable:', error.message);
+    // No lanzar el error para evitar que falle toda la función
+    return { error: error.message };
   }
 }
 

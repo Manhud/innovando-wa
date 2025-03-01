@@ -16,6 +16,9 @@ router.get('/webhook', (req, res) => {
 });
 
 router.post('/webhook', async (req, res) => {
+  // Responder inmediatamente para evitar timeout
+  res.status(200).json({ status: 'ok' });
+  
   try {
     console.log('Webhook recibido:', JSON.stringify(req.body, null, 2));
     
@@ -33,11 +36,8 @@ router.post('/webhook', async (req, res) => {
       // Guardar el mensaje recibido
       await guardarMensaje(req, from, message);
     }
-    
-    return res.status(200).json({ status: 'ok' });
   } catch (error) {
     console.error('Error procesando webhook:', error);
-    return res.status(200).json({ status: 'error', message: error.message });
   }
 });
 
@@ -55,6 +55,9 @@ router.get('/button-response', (req, res) => {
 });
 
 router.post('/button-response', async (req, res) => {
+  // Responder inmediatamente para evitar timeout
+  res.status(200).json({ status: 'ok' });
+  
   try {
     console.log('Button handler recibido:', JSON.stringify(req.body, null, 2));
     
@@ -109,13 +112,8 @@ router.post('/button-response', async (req, res) => {
     } else {
       console.log('Formato de mensaje no reconocido o sin mensajes');
     }
-    
-    // Siempre responder con 200 OK
-    return res.status(200).json({ status: 'ok' });
   } catch (error) {
     console.error('Error procesando botones:', error);
-    // Aún así respondemos con 200 para que Meta no reintente
-    return res.status(200).json({ status: 'ok' });
   }
 });
 
