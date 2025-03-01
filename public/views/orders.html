@@ -132,6 +132,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/unread-messages.js"></script>
     <script>
         // Elementos del DOM
         const ordersTableBody = document.getElementById('ordersTableBody');
@@ -219,83 +220,141 @@
         
         // Función para actualizar la tabla de pedidos
         function updateOrdersTable(orders) {
-            if (orders.length === 0) {
-                ordersTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center">No hay pedidos disponibles</td>
-                    </tr>
-                `;
+            const tableBody = document.getElementById('ordersTableBody');
+            tableBody.innerHTML = '';
+
+            if (!orders || orders.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="7" class="text-center">No hay pedidos disponibles</td>';
+                tableBody.appendChild(row);
                 return;
             }
-            
-            // Ordenar los pedidos por fecha (más recientes primero)
+
+            // Ordenar pedidos por fecha (más recientes primero)
             orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            
-            // Generar las filas de la tabla
-            const tableRows = orders.map(order => {
-                const customerName = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Cliente';
-                const products = order.line_items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-                const total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total_price);
-                const city = order.shipping_address.city || 'N/A';
-                const date = new Date(order.created_at).toLocaleString('es-CO');
+
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', order.order_id || order._id);
+                row.setAttribute('data-has-unread-messages', order.has_unread_messages ? 'true' : 'false');
                 
                 // Determinar la clase y texto del estado
                 let statusClass, statusText;
                 switch (order.status) {
-                    case 'CREATED':
-                        statusClass = 'status-created';
-                        statusText = 'Creado';
-                        break;
-                    case 'MESSAGE_SENT':
-                        statusClass = 'status-sent';
-                        statusText = 'Enviado';
-                        break;
-                    case 'MESSAGE_FAILED':
-                        statusClass = 'status-failed';
-                        statusText = 'Fallido';
+                    case 'PENDIENTE':
+                        statusClass = 'bg-warning';
+                        statusText = 'Pendiente';
                         break;
                     case 'CONFIRMADO':
-                        statusClass = 'status-confirmado';
+                        statusClass = 'bg-success';
                         statusText = 'Confirmado';
                         break;
                     case 'CANCELADO':
-                        statusClass = 'status-cancelado';
+                        statusClass = 'bg-danger';
                         statusText = 'Cancelado';
                         break;
+                    case 'ENTREGADO':
+                        statusClass = 'bg-info';
+                        statusText = 'Entregado';
+                        break;
+                    case 'RESPUESTA_RECIBIDA':
+                        statusClass = 'bg-primary';
+                        statusText = 'Respuesta recibida';
+                        break;
+                    case 'CREATED':
+                        statusClass = 'bg-info';
+                        statusText = 'Creado';
+                        break;
+                    case 'MESSAGE_SENT':
+                        statusClass = 'bg-success';
+                        statusText = 'Mensaje Enviado';
+                        break;
+                    case 'MESSAGE_FAILED':
+                        statusClass = 'bg-danger';
+                        statusText = 'Mensaje Fallido';
+                        break;
                     case 'MODIFICACION_SOLICITADA':
-                        statusClass = 'status-modificacion';
+                        statusClass = 'bg-warning';
                         statusText = 'Modificación Solicitada';
                         break;
                     case 'CAMBIO_DIRECCION_SOLICITADO':
-                        statusClass = 'status-cambio-direccion';
-                        statusText = 'Cambio de Dirección';
+                        statusClass = 'bg-warning';
+                        statusText = 'Cambio Dirección';
                         break;
                     default:
-                        statusClass = '';
+                        statusClass = 'bg-secondary';
                         statusText = order.status || 'Desconocido';
                 }
-                
-                return `
-                    <tr class="order-details" data-order-id="${order.order_id}">
-                        <td>${order.order_id}</td>
-                        <td>${customerName}</td>
-                        <td>${products.length > 50 ? products.substring(0, 50) + '...' : products}</td>
-                        <td>${total}</td>
-                        <td>${city}</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>${date}</td>
-                    </tr>
+
+                // Formatear la fecha
+                const date = new Date(order.created_at);
+                const formattedDate = date.toLocaleDateString('es-CO') + ' ' + date.toLocaleTimeString('es-CO');
+
+                // Obtener el nombre del cliente
+                let customerName = 'Sin nombre';
+                if (order.customer) {
+                    if (typeof order.customer === 'string') {
+                        customerName = order.customer;
+                    } else if (order.customer.name) {
+                        customerName = order.customer.name;
+                    } else if (order.customer.first_name) {
+                        customerName = `${order.customer.first_name} ${order.customer.last_name || ''}`.trim();
+                    }
+                }
+
+                // Obtener los productos
+                let productsText = 'Sin productos';
+                if (order.products && order.products.length > 0) {
+                    productsText = order.products.map(p => {
+                        if (typeof p === 'string') return p;
+                        return p.name || 'Producto sin nombre';
+                    }).join(', ');
+                } else if (order.line_items && order.line_items.length > 0) {
+                    productsText = order.line_items.map(item => {
+                        if (typeof item === 'string') return item;
+                        return item.name || 'Producto sin nombre';
+                    }).join(', ');
+                }
+
+                // Obtener la ciudad
+                let city = 'No especificada';
+                if (order.city) {
+                    city = order.city;
+                } else if (order.shipping_address && order.shipping_address.city) {
+                    city = order.shipping_address.city;
+                }
+
+                // Formatear el precio total
+                let totalPrice = '0';
+                if (order.total_price) {
+                    if (typeof order.total_price === 'number') {
+                        totalPrice = `$${order.total_price.toLocaleString('es-CO')}`;
+                    } else {
+                        totalPrice = `$${order.total_price}`;
+                    }
+                }
+
+                // Crear el contenido de la fila
+                row.innerHTML = `
+                    <td>${order.order_id || order._id || 'ID no disponible'}</td>
+                    <td>${customerName}</td>
+                    <td>${productsText}</td>
+                    <td>${totalPrice}</td>
+                    <td>${city}</td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>${formattedDate}</td>
                 `;
-            }).join('');
-            
-            // Actualizar el contenido de la tabla
-            ordersTableBody.innerHTML = tableRows;
-            
-            // Agregar eventos de clic a las filas
-            document.querySelectorAll('.order-details').forEach(row => {
-                row.addEventListener('click', () => {
-                    const orderId = row.getAttribute('data-order-id');
-                    showOrderDetails(orderId);
+
+                tableBody.appendChild(row);
+
+                // Agregar evento para mostrar detalles
+           
+
+                // Agregar evento para mostrar detalles al hacer clic en la fila
+                row.addEventListener('click', function(e) {
+                    if (!e.target.closest('.btn')) {
+                        showOrderDetails(order);
+                    }
                 });
             });
         }
@@ -318,56 +377,129 @@
         }
         
         // Función para mostrar los detalles de un pedido
-        async function showOrderDetails(orderId) {
+        async function showOrderDetails(order) {
             try {
                 // Guardar el ID del pedido actual
-                currentOrderId = orderId;
+                currentOrderId = order.order_id || order._id;
+                
+                if (!currentOrderId) {
+                    throw new Error('ID del pedido no disponible');
+                }
+                
+                console.log(`Obteniendo detalles del pedido con ID: ${currentOrderId}`);
                 
                 // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
                 let response;
                 try {
-                    response = await fetch(`/api/get-order?orderId=${orderId}`);
+                    response = await fetch(`/api/get-order?orderId=${currentOrderId}`);
                     if (!response.ok) {
                         throw new Error('Ruta nueva no disponible');
                     }
                 } catch (error) {
                     console.log('Intentando con ruta alternativa...');
-                    response = await fetch(`/api/orders/${orderId}`);
+                    response = await fetch(`/api/orders/${currentOrderId}`);
                     if (!response.ok) {
                         throw new Error(`Error al cargar los detalles del pedido: ${response.status}`);
                     }
                 }
                 
-                const order = await response.json();
+                const orderDetails = await response.json();
                 
-                // Formatear los datos del pedido
-                const customerName = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Cliente';
-                const customerEmail = order.customer.email || 'N/A';
-                const customerPhone = order.customer.phone !== null ? order.customer.phone : 'N/A';
-                const address = order.shipping_address.address1 || 'N/A';
-                const city = order.shipping_address.city || 'N/A';
-                const state = order.shipping_address.state || 'N/A';
-                const country = order.shipping_address.country || 'N/A';
-                const total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total_price);
-                const createdAt = new Date(order.created_at).toLocaleString('es-CO');
-                const updatedAt = new Date(order.updated_at).toLocaleString('es-CO');
+                // Verificar si tenemos los datos necesarios
+                if (!orderDetails) {
+                    throw new Error('No se pudieron obtener los detalles del pedido');
+                }
                 
-                // Generar el HTML para los productos
-                const productsHtml = order.line_items.map(item => {
-                    const itemTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(item.price * item.quantity);
-                    return `
-                        <tr>
-                            <td>${item.name}</td>
-                            <td>${item.quantity}</td>
-                            <td>${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(item.price)}</td>
-                            <td>${itemTotal}</td>
-                        </tr>
-                    `;
-                }).join('');
+                // Formatear los datos del pedido con manejo de errores
+                let customerName = 'Cliente';
+                let customerEmail = 'N/A';
+                let customerPhone = 'N/A';
+                let address = 'N/A';
+                let city = 'N/A';
+                let state = 'N/A';
+                let country = 'N/A';
+                let total = '0';
+                let createdAt = 'No disponible';
+                let updatedAt = 'No disponible';
+                
+                // Obtener datos del cliente
+                if (orderDetails.customer) {
+                    if (typeof orderDetails.customer === 'string') {
+                        customerName = orderDetails.customer;
+                    } else {
+                        customerName = `${orderDetails.customer.first_name || ''} ${orderDetails.customer.last_name || ''}`.trim() || 'Cliente';
+                        customerEmail = orderDetails.customer.email || 'N/A';
+                        customerPhone = orderDetails.customer.phone !== null ? orderDetails.customer.phone : 'N/A';
+                    }
+                }
+                
+                // Obtener datos de dirección
+                if (orderDetails.shipping_address) {
+                    address = orderDetails.shipping_address.address1 || 'N/A';
+                    city = orderDetails.shipping_address.city || 'N/A';
+                    state = orderDetails.shipping_address.state || 'N/A';
+                    country = orderDetails.shipping_address.country || 'N/A';
+                }
+                
+                // Formatear precio total
+                if (orderDetails.total_price) {
+                    if (typeof orderDetails.total_price === 'number') {
+                        total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(orderDetails.total_price);
+                    } else {
+                        total = `$${orderDetails.total_price}`;
+                    }
+                }
+                
+                // Formatear fechas
+                if (orderDetails.created_at) {
+                    createdAt = new Date(orderDetails.created_at).toLocaleString('es-CO');
+                }
+                if (orderDetails.updated_at) {
+                    updatedAt = new Date(orderDetails.updated_at).toLocaleString('es-CO');
+                }
+                
+                // Generar el HTML para los productos con manejo de errores
+                let productsHtml = '<tr><td colspan="4" class="text-center">No hay productos disponibles</td></tr>';
+                
+                if (orderDetails.line_items && orderDetails.line_items.length > 0) {
+                    productsHtml = orderDetails.line_items.map(item => {
+                        const itemName = item.name || 'Producto sin nombre';
+                        const itemQuantity = item.quantity || 1;
+                        const itemPrice = item.price || 0;
+                        const itemTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(itemPrice * itemQuantity);
+                        const formattedPrice = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(itemPrice);
+                        
+                        return `
+                            <tr>
+                                <td>${itemName}</td>
+                                <td>${itemQuantity}</td>
+                                <td>${formattedPrice}</td>
+                                <td>${itemTotal}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else if (orderDetails.products && orderDetails.products.length > 0) {
+                    productsHtml = orderDetails.products.map(item => {
+                        const itemName = typeof item === 'string' ? item : (item.name || 'Producto sin nombre');
+                        const itemQuantity = item.quantity || 1;
+                        const itemPrice = item.price || 0;
+                        const itemTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(itemPrice * itemQuantity);
+                        const formattedPrice = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(itemPrice);
+                        
+                        return `
+                            <tr>
+                                <td>${itemName}</td>
+                                <td>${itemQuantity}</td>
+                                <td>${formattedPrice}</td>
+                                <td>${itemTotal}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
                 
                 // Determinar la clase y texto del estado
                 let statusClass, statusText;
-                switch (order.status) {
+                switch (orderDetails.status) {
                     case 'CREATED':
                         statusClass = 'bg-info text-dark';
                         statusText = 'Creado';
@@ -398,7 +530,7 @@
                         break;
                     default:
                         statusClass = 'bg-secondary';
-                        statusText = order.status || 'Desconocido';
+                        statusText = orderDetails.status || 'Desconocido';
                 }
                 
                 // Actualizar el contenido del modal
@@ -406,7 +538,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <h6>Información del Pedido</h6>
-                            <p><strong>ID:</strong> ${order.order_id}</p>
+                            <p><strong>ID:</strong> ${orderDetails.order_id || orderDetails._id || 'No disponible'}</p>
                             <p><strong>Estado:</strong> <span class="badge ${statusClass}">${statusText}</span></p>
                             <p><strong>Fecha de Creación:</strong> ${createdAt}</p>
                             <p><strong>Última Actualización:</strong> ${updatedAt}</p>
@@ -457,12 +589,12 @@
                         </div>
                     </div>
                     
-                    ${order.message_status ? `
+                    ${orderDetails.message_status ? `
                     <div class="row mt-3">
                         <div class="col-12">
                             <h6>Información del Mensaje</h6>
-                            <p><strong>Estado del Mensaje:</strong> ${order.message_status}</p>
-                            ${order.message_id ? `<p><strong>ID del Mensaje:</strong> ${order.message_id}</p>` : ''}
+                            <p><strong>Estado del Mensaje:</strong> ${orderDetails.message_status}</p>
+                            ${orderDetails.message_id ? `<p><strong>ID del Mensaje:</strong> ${orderDetails.message_id}</p>` : ''}
                         </div>
                     </div>
                     ` : ''}
@@ -496,6 +628,8 @@
                 // Mostrar indicador de carga
                 deleteOrderBtn.disabled = true;
                 deleteOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Eliminando...';
+                
+                console.log(`Eliminando pedido con ID: ${orderId}`);
                 
                 // Realizar la solicitud DELETE
                 const response = await fetch(`/api/delete-order?orderId=${orderId}`, {

@@ -4,6 +4,7 @@ const orderService = require('../database/services/orderService');
 
 /**
  * Manejador para enviar mensajes desde la interfaz de administración
+ * Implementa un patrón de respuesta temprana para evitar timeouts en Vercel
  */
 module.exports = async (req, res) => {
   // Permitir CORS para desarrollo local
@@ -43,8 +44,17 @@ module.exports = async (req, res) => {
       });
     }
     
-    // Enviar el mensaje a WhatsApp
+    // Responder inmediatamente para evitar timeouts en Vercel
+    res.status(202).json({ 
+      success: true, 
+      message: 'Mensaje en proceso de envío',
+      orderId,
+      status: 'processing'
+    });
+    
+    // Continuar el procesamiento en segundo plano
     try {
+      // Enviar el mensaje a WhatsApp
       const response = await sendTextMessage(phone, message);
       
       // Guardar el mensaje en la base de datos
@@ -62,24 +72,19 @@ module.exports = async (req, res) => {
         await orderService.updateUnreadMessagesStatus(orderId, false);
       }
       
-      return res.status(200).json({ 
-        success: true, 
-        message: 'Mensaje enviado correctamente',
-        details: response
-      });
+      console.log(`Mensaje enviado correctamente al pedido ${orderId}`);
     } catch (whatsappError) {
       console.error('Error al enviar mensaje a WhatsApp:', whatsappError);
-      
-      return res.status(500).json({ 
-        error: 'Error al enviar mensaje a WhatsApp', 
-        details: whatsappError.message 
-      });
+      // No podemos enviar respuesta aquí porque ya respondimos
     }
   } catch (error) {
     console.error('Error en el servidor:', error);
-    return res.status(500).json({ 
-      error: 'Error en el servidor', 
-      details: error.message 
-    });
+    // Solo enviar respuesta de error si aún no hemos respondido
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        error: 'Error en el servidor', 
+        details: error.message 
+      });
+    }
   }
 }; 
