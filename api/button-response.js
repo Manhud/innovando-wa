@@ -1,6 +1,7 @@
-import { sendTextMessage } from '../utils/whatsapp-api';
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const { sendTextMessage } = require('../utils/whatsapp-api');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Siempre responder con 200 OK para evitar que Meta reintente constantemente
   // Esto es una práctica recomendada para webhooks de WhatsApp
   const respondSuccess = () => res.status(200).json({ status: 'ok' });
