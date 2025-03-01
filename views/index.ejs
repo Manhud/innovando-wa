@@ -1,0 +1,102 @@
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1 class="mb-3">
+      <i class="bi bi-list-check me-2"></i>
+      Pedidos de WhatsApp
+    </h1>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-light">
+    <div class="row align-items-center">
+      <div class="col">
+        <h5 class="mb-0">Filtrar por estado</h5>
+      </div>
+      <div class="col-md-8">
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/" class="btn btn-sm <%= !filtroActual ? 'btn-primary' : 'btn-outline-primary' %>">
+            Todos
+          </a>
+          <% estados.forEach(estado => { %>
+            <a href="/?estado=<%= estado %>" class="btn btn-sm <%= filtroActual === estado ? 'btn-primary' : 'btn-outline-primary' %>">
+              <%= estado.charAt(0).toUpperCase() + estado.slice(1) %>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (pedidos.length === 0) { %>
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    No hay pedidos <%= filtroActual ? `con estado "${filtroActual}"` : '' %> para mostrar.
+  </div>
+<% } else { %>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Teléfono</th>
+          <th>Mensajes</th>
+          <th>Estado</th>
+          <th>Última actualización</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% pedidos.forEach(pedido => { %>
+          <tr>
+            <td><%= pedido._id.toString().slice(-6) %></td>
+            <td>
+              <a href="https://wa.me/<%= pedido.telefono.replace('+', '') %>" target="_blank" class="text-decoration-none">
+                <%= pedido.telefono %>
+                <i class="bi bi-whatsapp text-success ms-1"></i>
+              </a>
+              <% if (pedido.nombre) { %>
+                <div class="small text-muted"><%= pedido.nombre %></div>
+              <% } %>
+            </td>
+            <td>
+              <% if (pedido.mensajes && pedido.mensajes.length > 0) { %>
+                <span class="badge bg-secondary"><%= pedido.mensajes.length %> mensajes</span>
+                <div class="small text-muted">
+                  Último: <%= new Date(pedido.mensajes[pedido.mensajes.length - 1].timestamp).toLocaleDateString() %>
+                </div>
+              <% } else { %>
+                <span class="text-muted">Sin mensajes</span>
+              <% } %>
+            </td>
+            <td>
+              <span class="badge rounded-pill 
+                <%= pedido.estado === 'pendiente' ? 'bg-warning' : 
+                   pedido.estado === 'confirmado' ? 'bg-primary' : 
+                   'bg-secondary' %>">
+                <%= pedido.estado.charAt(0).toUpperCase() + pedido.estado.slice(1) %>
+              </span>
+            </td>
+            <td><%= new Date(pedido.fechaActualizacion).toLocaleString() %></td>
+            <td>
+              <div class="btn-group">
+                <a href="/pedidos/<%= pedido._id %>" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <% if (pedido.estado === 'pendiente') { %>
+                  <form action="/pedidos/<%= pedido._id %>/actualizar" method="POST" class="d-inline">
+                    <input type="hidden" name="estado" value="confirmado">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-check"></i>
+                    </button>
+                  </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %> 

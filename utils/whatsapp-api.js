@@ -5,7 +5,7 @@
  * @param {number} retryCount - Número de intentos (para uso interno)
  * @returns {Promise<object>} - Respuesta de la API
  */
-export async function sendTextMessage(to, message, retryCount = 0) {
+async function sendTextMessage(to, message, retryCount = 0) {
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 1000; // 1 segundo
 
@@ -70,3 +70,11 @@ export async function sendTextMessage(to, message, retryCount = 0) {
     throw error;
   }
 }
+
+// Importar node-fetch para entornos de Node.js
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+// Exportar funciones usando sintaxis CommonJS
+module.exports = {
+  sendTextMessage
+};

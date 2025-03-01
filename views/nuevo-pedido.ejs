@@ -1,0 +1,81 @@
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1 class="mb-3">
+      <i class="bi bi-plus-circle me-2"></i>
+      Nuevo Pedido
+    </h1>
+  </div>
+  <div class="col-md-4 text-md-end">
+    <a href="/" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>
+      Volver a la lista
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Información del Pedido</h5>
+      </div>
+      <div class="card-body">
+        <form action="/nuevo-pedido" method="POST">
+          <div class="mb-3">
+            <label for="telefono" class="form-label">Teléfono del cliente *</label>
+            <input type="text" class="form-control" id="telefono" name="telefono" required
+                   placeholder="Ej: 573232205135">
+            <div class="form-text">Incluye el código de país sin el signo +</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="nombre" class="form-label">Nombre del cliente</label>
+            <input type="text" class="form-control" id="nombre" name="nombre" 
+                   placeholder="Nombre completo del cliente">
+          </div>
+          
+          <div class="mb-3">
+            <label for="productos" class="form-label">Productos</label>
+            <textarea class="form-control" id="productos" name="productos" rows="3"
+                      placeholder="Lista de productos separados por comas"></textarea>
+            <div class="form-text">Ejemplo: Camiseta talla M, Pantalón negro, Zapatos 42</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="direccion" class="form-label">Dirección de envío</label>
+            <textarea class="form-control" id="direccion" name="direccion" rows="2"
+                      placeholder="Dirección completa de entrega"></textarea>
+          </div>
+          
+          <div class="mb-3">
+            <label for="estado" class="form-label">Estado del pedido</label>
+            <select class="form-select" id="estado" name="estado" required>
+              <% estados.forEach(estado => { %>
+                <option value="<%= estado %>" <%= estado === 'pendiente' ? 'selected' : '' %>>
+                  <%= estado.charAt(0).toUpperCase() + estado.slice(1) %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label for="notas" class="form-label">Notas adicionales</label>
+            <textarea class="form-control" id="notas" name="notas" rows="3"
+                      placeholder="Información adicional sobre el pedido"></textarea>
+          </div>
+          
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save me-1"></i>
+              Guardar Pedido
+            </button>
+            <button type="reset" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i>
+              Limpiar Formulario
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div> 
