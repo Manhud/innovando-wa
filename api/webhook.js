@@ -1,5 +1,7 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+// Endpoint para el webhook
+const { connectToDatabase } = require('../database/connection');
 const orderService = require('../database/services/orderService');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 module.exports = async (req, res) => {
   // Verificar método
@@ -13,6 +15,9 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
+    // Conectar a la base de datos
+    await connectToDatabase();
+    
     const order = req.body;
     console.log('Orden recibida:', order);
 

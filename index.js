@@ -16,42 +16,25 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Importar los manejadores de API
+const getOrdersHandler = require('./api/get-orders');
+const getOrderHandler = require('./api/get-order');
+const ordersPageHandler = require('./api/orders');
+
 // Rutas de la API
 app.post('/api/webhook', webhookHandler);
 app.post('/api/button-response', buttonResponseHandler);
 
-// Ruta para verificar el estado de los pedidos
-app.get('/api/orders/:orderId', async (req, res) => {
-  try {
-    const orderService = require('./database/services/orderService');
-    const order = await orderService.getOrderById(req.params.orderId);
-    
-    if (!order) {
-      return res.status(404).json({ error: 'Pedido no encontrado' });
-    }
-    
-    return res.status(200).json(order);
-  } catch (error) {
-    console.error('Error al obtener el pedido:', error);
-    return res.status(500).json({ error: 'Error al obtener el pedido' });
-  }
-});
+// Nuevas rutas de API
+app.get('/api/get-orders', getOrdersHandler);
+app.get('/api/get-order', getOrderHandler);
+app.get('/orders', ordersPageHandler);
 
-// Ruta para listar todos los pedidos
-app.get('/api/orders', async (req, res) => {
-  try {
-    const orderService = require('./database/services/orderService');
-    const orders = await orderService.getAllOrders();
-    return res.status(200).json(orders);
-  } catch (error) {
-    console.error('Error al obtener los pedidos:', error);
-    return res.status(500).json({ error: 'Error al obtener los pedidos' });
-  }
-});
-
-// Ruta para la página de gestión de pedidos
-app.get('/orders', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/views/orders.html'));
+// Rutas de compatibilidad para mantener las rutas antiguas funcionando
+app.get('/api/orders', getOrdersHandler);
+app.get('/api/orders/:orderId', (req, res) => {
+  req.query.orderId = req.params.orderId;
+  getOrderHandler(req, res);
 });
 
 // Ruta de verificación

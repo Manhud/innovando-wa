@@ -131,11 +131,19 @@
                 loadingSpinner.style.display = 'inline-block';
                 refreshBtn.disabled = true;
                 
-                // Obtener los pedidos desde la API
-                const response = await fetch('/api/orders');
-                
-                if (!response.ok) {
-                    throw new Error(`Error al cargar los pedidos: ${response.status}`);
+                // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
+                let response;
+                try {
+                    response = await fetch('/api/get-orders');
+                    if (!response.ok) {
+                        throw new Error('Ruta nueva no disponible');
+                    }
+                } catch (error) {
+                    console.log('Intentando con ruta alternativa...');
+                    response = await fetch('/api/orders');
+                    if (!response.ok) {
+                        throw new Error(`Error al cargar los pedidos: ${response.status}`);
+                    }
                 }
                 
                 const orders = await response.json();
@@ -242,11 +250,19 @@
         // Función para mostrar los detalles de un pedido
         async function showOrderDetails(orderId) {
             try {
-                // Obtener los detalles del pedido desde la API
-                const response = await fetch(`/api/orders/${orderId}`);
-                
-                if (!response.ok) {
-                    throw new Error(`Error al cargar los detalles del pedido: ${response.status}`);
+                // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
+                let response;
+                try {
+                    response = await fetch(`/api/get-order?orderId=${orderId}`);
+                    if (!response.ok) {
+                        throw new Error('Ruta nueva no disponible');
+                    }
+                } catch (error) {
+                    console.log('Intentando con ruta alternativa...');
+                    response = await fetch(`/api/orders/${orderId}`);
+                    if (!response.ok) {
+                        throw new Error(`Error al cargar los detalles del pedido: ${response.status}`);
+                    }
                 }
                 
                 const order = await response.json();
