@@ -106,60 +106,55 @@ const orderService = {
   },
   
   /**
-   * Busca pedidos por número de teléfono del cliente
-   * @param {string} phone - Número de teléfono del cliente
-   * @param {Object} options - Opciones adicionales (limit, sort, etc.)
-   * @returns {Promise<Array>} Lista de pedidos encontrados
+   * Obtiene los pedidos asociados a un número de teléfono
+   * @param {string} phone - Número de teléfono
+   * @param {Object} options - Opciones adicionales (limit, sort)
+   * @returns {Promise<Array>} Lista de pedidos
    */
   async getOrdersByPhone(phone, options = {}) {
     try {
+      // Validar que el teléfono no sea nulo
       if (!phone) {
-        console.error('Error: Se intentó buscar con un número de teléfono vacío o nulo');
+        console.log('Número de teléfono no proporcionado');
         return [];
       }
       
-      // Eliminar caracteres no numéricos del teléfono para la búsqueda
+      // Limpiar el número de teléfono para la búsqueda
       const cleanPhone = phone.toString().replace(/\D/g, '');
-      
       console.log(`Buscando pedidos para el teléfono: "${phone}" (limpio: "${cleanPhone}")`);
       
-      // Crear múltiples patrones de búsqueda para aumentar las posibilidades de coincidencia
-      const patterns = [];
+      // Crear patrones para buscar diferentes formatos del número
+      const patterns = [
+        // Patrón 1: Exactamente igual al número proporcionado
+        new RegExp(`^${phone}$`),
+        
+        // Patrón 2: Exactamente igual al número limpio
+        new RegExp(`^${cleanPhone}$`),
+        
+        // Patrón 3: Contiene el número limpio
+        new RegExp(cleanPhone),
+        
+        // Patrón 4: Con el prefijo 57
+        new RegExp(`57${cleanPhone}`),
+      ];
       
-      // Patrón 1: Número exacto como se proporcionó
-      patterns.push(new RegExp(`^${phone}$`));
-      
-      // Patrón 2: Número limpio exacto
-      patterns.push(new RegExp(`^${cleanPhone}$`));
-      
-      // Patrón 3: Últimos 10 dígitos (número sin prefijo de país)
-      if (cleanPhone.length >= 10) {
-        patterns.push(new RegExp(cleanPhone.slice(-10)));
-      }
-      
-      // Patrón 4: Si el número comienza con '57', también buscar sin el prefijo
-      if (cleanPhone.startsWith('57') && cleanPhone.length > 2) {
-        patterns.push(new RegExp(cleanPhone.substring(2)));
-      }
-      
-      // Patrón 5: Si el número no comienza con '57', también buscar con el prefijo
-      if (!cleanPhone.startsWith('57')) {
-        patterns.push(new RegExp(`57${cleanPhone}`));
-      }
-      
-      // Patrón 6: Con el formato +57
+      // Patrón 5: Con el formato +57
       if (!cleanPhone.startsWith('57')) {
         patterns.push(new RegExp(`\\+57${cleanPhone}`));
       } else {
         patterns.push(new RegExp(`\\+${cleanPhone}`));
       }
       
-      // Patrón 7: Búsqueda parcial (contiene el número)
+      // Patrón 6: Búsqueda parcial (contiene el número)
       patterns.push(new RegExp(cleanPhone));
       
       // Construir la consulta con OR para cualquiera de los patrones
       const query = {
-        $or: patterns.map(pattern => ({ 'customer.phone': { $regex: pattern } }))
+        $or: [
+          ...patterns.map(pattern => ({ 'customer.phone': { $regex: pattern } })),
+          // También buscar pedidos donde el teléfono sea exactamente igual al proporcionado
+          { 'customer.phone': phone }
+        ]
       };
       
       console.log(`Patrones de búsqueda: ${patterns.map(p => p.toString())}`);

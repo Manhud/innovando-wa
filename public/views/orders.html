@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Pedidos - Innovando WA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body {
             padding-top: 2rem;
@@ -67,10 +68,15 @@
         <h1 class="mb-4">Gestión de Pedidos</h1>
         
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <button id="refreshBtn" class="btn btn-primary refresh-btn">
-                <i class="bi bi-arrow-clockwise"></i> Actualizar
-                <span class="spinner-border spinner-border-sm loading" id="loadingSpinner" role="status" aria-hidden="true"></span>
-            </button>
+            <div>
+                <button id="refreshBtn" class="btn btn-primary refresh-btn">
+                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    <span class="spinner-border spinner-border-sm loading" id="loadingSpinner" role="status" aria-hidden="true"></span>
+                </button>
+                <a href="/views/chat.html?v=1.1" class="btn btn-info ms-2">
+                    <i class="bi bi-chat-dots"></i> Ver Chats
+                </a>
+            </div>
             <div class="text-end">
                 <span class="badge bg-info text-dark me-2">Total: <span id="totalOrders">0</span></span>
                 <span class="badge bg-success">Enviados: <span id="sentOrders">0</span></span>
@@ -115,6 +121,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <a id="viewChatBtn" href="#" class="btn btn-info">
+                            <i class="bi bi-chat-dots"></i> Ver Chat
+                        </a>
                         <button type="button" class="btn btn-danger" id="deleteOrderBtn">Eliminar Pedido</button>
                     </div>
                 </div>
@@ -151,6 +160,16 @@
             
             // Configurar el botón de eliminar
             deleteOrderBtn.addEventListener('click', confirmDeleteOrder);
+            
+            // Configurar el botón de ver chat
+            document.getElementById('viewChatBtn').addEventListener('click', function() {
+                if (currentOrderId) {
+                    window.location.href = `/views/chat.html?orderId=${currentOrderId}&v=1.1`;
+                }
+            });
+            
+            // Agregar un mensaje en la consola para verificar que se cargó la versión correcta
+            console.log('Orders.html cargado correctamente - Versión actualizada');
         });
         
         // Función para cargar los pedidos desde la API
@@ -324,7 +343,7 @@
                 // Formatear los datos del pedido
                 const customerName = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Cliente';
                 const customerEmail = order.customer.email || 'N/A';
-                const customerPhone = order.customer.phone || 'N/A';
+                const customerPhone = order.customer.phone !== null ? order.customer.phone : 'N/A';
                 const address = order.shipping_address.address1 || 'N/A';
                 const city = order.shipping_address.city || 'N/A';
                 const state = order.shipping_address.state || 'N/A';

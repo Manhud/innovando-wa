@@ -15,8 +15,10 @@
     "test-update-status": "node test/test-update-status.js",
     "test-button-update": "node test/test-button-update.js",
     "test-phone-debug": "node test/test-phone-debug.js",
+    "test-chat": "node test/test-chat.js",
     "test-delete-order": "node test/test-delete-order.js",
-    "test-delete-button": "node test/test-delete-button.js"
+    "test-delete-button": "node test/test-delete-button.js",
+    "fix-null-phones": "node test/fix-null-phones.js"
   },
   "keywords": [],
   "author": "",

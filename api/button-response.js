@@ -2,6 +2,7 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 const { sendTextMessage } = require('../utils/whatsapp-api');
 const { connectToDatabase } = require('../database/connection');
 const orderService = require('../database/services/orderService');
+const chatService = require('../database/services/chatService');
 
 module.exports = async (req, res) => {
   // Siempre responder con 200 OK para evitar que Meta reintente constantemente
@@ -69,13 +70,13 @@ module.exports = async (req, res) => {
             const buttonText = message.interactive.button_reply.title;
             console.log(`Botón presionado: ID=${buttonId}, Texto=${buttonText}`);
             
-            await handleButtonResponse(from, buttonId, buttonText);
+            await handleButtonResponse(from, buttonId, buttonText, message.timestamp);
           } else if (message.interactive.type === 'list_reply') {
             const listId = message.interactive.list_reply.id;
             const listTitle = message.interactive.list_reply.title;
             console.log(`Lista seleccionada: ID=${listId}, Título=${listTitle}`);
             
-            await handleButtonResponse(from, listId, listTitle);
+            await handleButtonResponse(from, listId, listTitle, message.timestamp);
           }
         }
         // Manejar el formato de botón directo
@@ -83,7 +84,7 @@ module.exports = async (req, res) => {
           const buttonText = message.button.text;
           console.log(`Botón directo presionado: ${buttonText}`);
           
-          await handleButtonResponse(from, buttonText, buttonText);
+          await handleButtonResponse(from, buttonText, buttonText, message.timestamp);
         }
         // Otros tipos de mensajes
         else {
@@ -124,8 +125,9 @@ module.exports = async (req, res) => {
  * @param {string} from - Número de teléfono del remitente
  * @param {string} buttonId - ID del botón presionado
  * @param {string} buttonText - Texto del botón presionado
+ * @param {number} timestamp - Timestamp del mensaje (opcional)
  */
-async function handleButtonResponse(from, buttonId, buttonText) {
+async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
   try {
     // Validar que el número de teléfono no sea nulo o vacío
     if (!from) {
@@ -189,18 +191,9 @@ async function handleButtonResponse(from, buttonId, buttonText) {
       console.log(`Botón no reconocido específicamente: "${buttonText}" (ID: ${buttonId})`);
     }
     
-    // Enviar mensaje de respuesta
-    console.log(`Enviando respuesta a ${from}: ${responseMessage}`);
-    try {
-      await sendTextMessage(from, responseMessage);
-      console.log('Respuesta enviada correctamente');
-    } catch (msgError) {
-      console.error('Error al enviar mensaje de respuesta:', msgError);
-      // Continuamos con la actualización del estado aunque falle el envío del mensaje
-    }
-    
     // Si tenemos un estado nuevo y el sistema está conectado a la base de datos,
     // intentamos actualizar el pedido asociado al número de teléfono
+    let orderId = 'SIN_PEDIDO';
     if (newStatus) {
       try {
         console.log(`Intentando actualizar el estado del pedido a: ${newStatus}`);
@@ -215,10 +208,22 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         
         if (orders && orders.length > 0) {
           const latestOrder = orders[0]; // Obtener el pedido más reciente
+          orderId = latestOrder.order_id;
           
           console.log(`Pedido encontrado para actualizar: ${latestOrder.order_id}`);
           console.log(`Estado actual: ${latestOrder.status}`);
           console.log(`Nuevo estado a establecer: ${newStatus}`);
+          
+          // Guardar el mensaje del cliente en el chat
+          await chatService.saveMessage({
+            order_id: orderId,
+            sender: 'CUSTOMER',
+            message: `Seleccionó: ${buttonText}`,
+            phone: from,
+            message_type: 'BUTTON',
+            button_payload: buttonId,
+            created_at: timestamp ? new Date(timestamp * 1000) : new Date()
+          });
           
           // Actualizar el estado del pedido
           const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
@@ -261,7 +266,19 @@ async function handleButtonResponse(from, buttonId, buttonText) {
             
             if (altOrders && altOrders.length > 0) {
               const latestOrder = altOrders[0];
+              orderId = latestOrder.order_id;
               console.log(`Pedido encontrado con formato alternativo: ${latestOrder.order_id}`);
+              
+              // Guardar el mensaje del cliente en el chat
+              await chatService.saveMessage({
+                order_id: orderId,
+                sender: 'CUSTOMER',
+                message: `Seleccionó: ${buttonText}`,
+                phone: from,
+                message_type: 'BUTTON',
+                button_payload: buttonId,
+                created_at: timestamp ? new Date(timestamp * 1000) : new Date()
+              });
               
               // Actualizar el estado del pedido
               const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
@@ -289,12 +306,43 @@ async function handleButtonResponse(from, buttonId, buttonText) {
                 console.log(`${index + 1}. ID: ${order.order_id}, Teléfono: "${order.customer.phone}", Estado: ${order.status}`);
               });
             }
+            
+            // Guardar el mensaje sin asociarlo a un pedido específico
+            await chatService.saveMessage({
+              order_id: 'SIN_PEDIDO',
+              sender: 'CUSTOMER',
+              message: `Seleccionó: ${buttonText}`,
+              phone: from,
+              message_type: 'BUTTON',
+              button_payload: buttonId,
+              created_at: timestamp ? new Date(timestamp * 1000) : new Date()
+            });
           }
         }
       } catch (updateError) {
         console.error('Error al actualizar el estado del pedido:', updateError);
         console.error('Stack trace:', updateError.stack);
       }
+    }
+    
+    // Enviar mensaje de respuesta
+    console.log(`Enviando respuesta a ${from}: ${responseMessage}`);
+    try {
+      await sendTextMessage(from, responseMessage);
+      console.log('Respuesta enviada correctamente');
+      
+      // Guardar la respuesta del sistema en el chat
+      await chatService.saveMessage({
+        order_id: orderId,
+        sender: 'SYSTEM',
+        message: responseMessage,
+        phone: from,
+        message_type: 'TEXT',
+        created_at: new Date()
+      });
+    } catch (msgError) {
+      console.error('Error al enviar mensaje de respuesta:', msgError);
+      // Continuamos con la actualización del estado aunque falle el envío del mensaje
     }
     
     console.log('Respuesta de botón procesada exitosamente');

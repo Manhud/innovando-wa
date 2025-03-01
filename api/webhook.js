@@ -1,8 +1,73 @@
 // Endpoint para el webhook
 const { connectToDatabase } = require('../database/connection');
 const orderService = require('../database/services/orderService');
+const chatService = require('../database/services/chatService');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { sendTextMessage, sendButtonMessage, sendTemplateMessage, formatPhoneNumber } = require('../utils/whatsapp-api');
+
+// Función para procesar mensajes entrantes de WhatsApp
+async function processIncomingMessage(message, metadata) {
+  try {
+    console.log('Procesando mensaje entrante:', JSON.stringify(message, null, 2));
+    
+    // Extraer información del mensaje
+    const from = message.from;
+    let messageText = '';
+    let messageType = 'TEXT';
+    let buttonPayload = null;
+    
+    // Determinar el tipo de mensaje y extraer el texto
+    if (message.type === 'text' && message.text) {
+      messageText = message.text.body;
+    } else if (message.type === 'button' && message.button) {
+      messageText = message.button.text;
+      buttonPayload = message.button.payload;
+      messageType = 'BUTTON';
+    } else if (message.type === 'interactive' && message.interactive) {
+      if (message.interactive.type === 'button_reply') {
+        messageText = message.interactive.button_reply.title;
+        buttonPayload = message.interactive.button_reply.id;
+        messageType = 'BUTTON';
+      } else if (message.interactive.type === 'list_reply') {
+        messageText = message.interactive.list_reply.title;
+        buttonPayload = message.interactive.list_reply.id;
+        messageType = 'BUTTON';
+      }
+    } else if (message.type === 'location' && message.location) {
+      messageText = `Ubicación: ${message.location.latitude}, ${message.location.longitude}`;
+      messageType = 'LOCATION';
+    } else if (message.type === 'image' && message.image) {
+      messageText = message.image.caption || 'Imagen recibida';
+      messageType = 'IMAGE';
+    } else if (message.type === 'document' && message.document) {
+      messageText = message.document.caption || 'Documento recibido';
+      messageType = 'DOCUMENT';
+    } else if (message.type === 'audio' && message.audio) {
+      messageText = 'Audio recibido';
+      messageType = 'AUDIO';
+    } else if (message.type === 'video' && message.video) {
+      messageText = message.video.caption || 'Video recibido';
+      messageType = 'VIDEO';
+    } else {
+      messageText = `Mensaje de tipo ${message.type} recibido`;
+    }
+    
+    // Guardar el mensaje en la base de datos
+    await chatService.saveWhatsAppMessage({
+      from,
+      text: messageText,
+      type: messageType,
+      buttonPayload,
+      timestamp: message.timestamp
+    });
+    
+    console.log(`Mensaje guardado correctamente para el número ${from}`);
+    return true;
+  } catch (error) {
+    console.error('Error al procesar mensaje entrante:', error);
+    return false;
+  }
+}
 
 module.exports = async (req, res) => {
   // Siempre responder con 200 OK para evitar que Meta reintente constantemente
@@ -41,6 +106,9 @@ module.exports = async (req, res) => {
     try {
       console.log('Webhook POST recibido:', JSON.stringify(req.body, null, 2));
       
+      // Conectar a la base de datos
+      await connectToDatabase();
+      
       // Verificar si es una notificación de WhatsApp
       if (req.body.object === 'whatsapp_business_account') {
         console.log('Notificación de WhatsApp Business recibida');
@@ -52,6 +120,11 @@ module.exports = async (req, res) => {
               for (const change of entry.changes) {
                 if (change.value && change.value.messages && change.value.messages.length > 0) {
                   console.log('Mensajes encontrados en la notificación');
+                  
+                  // Procesar cada mensaje recibido
+                  for (const message of change.value.messages) {
+                    await processIncomingMessage(message, change.value.metadata);
+                  }
                   
                   // Responder a la notificación para evitar reenvíos
                   return respondSuccess();
@@ -66,9 +139,7 @@ module.exports = async (req, res) => {
         return respondSuccess();
       }
       
-      // Conectar a la base de datos
-      await connectToDatabase();
-      
+      // Si no es una notificación de WhatsApp, asumimos que es un pedido nuevo
       const order = req.body;
       console.log('Orden recibida:', order);
 
@@ -131,6 +202,14 @@ Recuerda por favor verificar todos tus datos y confirmar tu pedido.
             true, 
             { id: response.messages?.[0]?.id }
           );
+          
+          // Guardar el mensaje enviado en el chat
+          await chatService.saveSystemMessage(
+            savedOrder.order_id,
+            formattedPhone,
+            `Mensaje de plantilla enviado: validate_order`,
+            'TEXT'
+          );
         } 
         // Opción 2: Usar mensaje con botones
         else {
@@ -154,6 +233,14 @@ Recuerda por favor verificar todos tus datos y confirmar tu pedido.
             savedOrder.order_id, 
             true, 
             { id: response.messages?.[0]?.id }
+          );
+          
+          // Guardar el mensaje enviado en el chat
+          await chatService.saveSystemMessage(
+            savedOrder.order_id,
+            formattedPhone,
+            message,
+            'BUTTON'
           );
         }
         

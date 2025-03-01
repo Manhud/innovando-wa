@@ -32,6 +32,11 @@
       "dest": "/api/get-order.js"
     },
     {
+      "src": "/api/get-chat",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/get-chat.js"
+    },
+    {
       "src": "/api/delete-order",
       "methods": ["DELETE", "OPTIONS"],
       "dest": "/api/delete-order.js"
