@@ -147,6 +147,47 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: "Datos del pedido incompletos." });
       }
 
+      // Buscar el número de teléfono en múltiples lugares del objeto de la orden
+      let customerPhone = null;
+      
+      // 1. Intentar obtener de customer.phone
+      if (order.customer && order.customer.phone) {
+        customerPhone = order.customer.phone;
+      } 
+      // 2. Intentar obtener del objeto principal
+      else if (order.phone) {
+        customerPhone = order.phone;
+      } 
+      // 3. Intentar obtener de shipping_address.phone
+      else if (order.shipping_address && order.shipping_address.phone) {
+        customerPhone = order.shipping_address.phone;
+      }
+      // 4. Intentar obtener de billing_address.phone
+      else if (order.billing_address && order.billing_address.phone) {
+        customerPhone = order.billing_address.phone;
+      }
+      // 5. Intentar obtener de note_attributes
+      else if (order.note_attributes && Array.isArray(order.note_attributes)) {
+        const phoneNote = order.note_attributes.find(note => note.name === 'phone');
+        if (phoneNote && phoneNote.value) {
+          customerPhone = phoneNote.value;
+        }
+      }
+      
+      // Si aún no se encontró un número, usar el valor por defecto
+      if (!customerPhone) {
+        customerPhone = "573232205135"; // Número por defecto
+        console.log('No se encontró número de teléfono en la orden, usando número por defecto:', customerPhone);
+      } else {
+        console.log('Número de teléfono encontrado en la orden:', customerPhone);
+      }
+      
+      // Asegurarse de que el cliente tenga un número de teléfono antes de guardar
+      if (order.customer) {
+        order.customer.phone = customerPhone;
+        console.log('Asignando número de teléfono al cliente:', customerPhone);
+      }
+
       // Guardar el pedido en la base de datos con estado CREATED
       const savedOrder = await orderService.createOrder(order);
       console.log(`Pedido guardado en la base de datos con ID: ${savedOrder.order_id}`);
@@ -163,8 +204,7 @@ module.exports = async (req, res) => {
       const city = order.shipping_address?.city || "Ciudad desconocida";
       const address = order.shipping_address?.address1 || "Dirección desconocida";
 
-      // Número de teléfono del cliente (con formato internacional)
-      const customerPhone = order.customer?.phone || "573232205135"; // Número por defecto si no hay teléfono
+      // Usar el número de teléfono que encontramos
       const formattedPhone = formatPhoneNumber(customerPhone);
 
       try {

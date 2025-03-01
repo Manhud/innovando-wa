@@ -1,67 +1,73 @@
+/**
+ * Script para corregir los números de teléfono nulos en los pedidos existentes
+ * 
+ * Ejecutar con: npm run fix-null-phones
+ */
+
 require('dotenv').config();
 const { connectToDatabase } = require('../database/connection');
 const Order = require('../database/models/Order');
 
-/**
- * Script para corregir pedidos con números de teléfono nulos
- */
-async function fixNullPhones() {
+async function fixNullPhoneNumbers() {
   try {
-    console.log('Iniciando corrección de números de teléfono nulos...');
-    
-    // Conectar a la base de datos
+    console.log('Conectando a la base de datos...');
     await connectToDatabase();
-    console.log('Conexión a la base de datos establecida');
     
-    // Buscar pedidos con teléfono nulo
-    const nullPhoneOrders = await Order.find({ 'customer.phone': null });
-    
-    console.log(`Se encontraron ${nullPhoneOrders.length} pedidos con teléfono nulo`);
-    
-    if (nullPhoneOrders.length === 0) {
-      console.log('No hay pedidos que corregir');
-      return;
-    }
-    
-    // Mostrar los pedidos encontrados
-    nullPhoneOrders.forEach((order, index) => {
-      console.log(`\nPedido #${index + 1}:`);
-      console.log(`- ID: ${order.order_id}`);
-      console.log(`- Cliente: ${order.customer.first_name} ${order.customer.last_name}`);
-      console.log(`- Teléfono: ${order.customer.phone} (tipo: ${typeof order.customer.phone})`);
-      console.log(`- Estado: ${order.status}`);
-      console.log(`- Fecha: ${order.created_at}`);
+    console.log('Buscando pedidos con números de teléfono nulos...');
+    const ordersWithNullPhone = await Order.find({
+      'customer.phone': null
     });
     
-    // Preguntar si se desea corregir los pedidos
-    console.log('\n¿Desea corregir estos pedidos? (s/n)');
+    console.log(`Se encontraron ${ordersWithNullPhone.length} pedidos con números de teléfono nulos.`);
     
-    // Como no podemos usar readline en este entorno, asumimos que sí
-    console.log('Asumiendo respuesta: s');
+    if (ordersWithNullPhone.length === 0) {
+      console.log('No hay pedidos que corregir.');
+      process.exit(0);
+    }
     
-    // Corregir los pedidos
-    let correctedCount = 0;
+    console.log('Corrigiendo números de teléfono nulos...');
     
-    for (const order of nullPhoneOrders) {
-      // Establecer un número de teléfono por defecto
-      order.customer.phone = "573232205135"; // Número por defecto
+    const defaultPhone = '573232205135';
+    let updatedCount = 0;
+    
+    for (const order of ordersWithNullPhone) {
+      console.log(`Corrigiendo pedido ${order.order_id}...`);
+      
+      // Buscar el número de teléfono en otras partes del pedido
+      let phoneFound = false;
+      
+      // Verificar si hay información de envío con teléfono
+      if (order.shipping_address && order.shipping_address.phone) {
+        order.customer.phone = order.shipping_address.phone.replace(/\D/g, '');
+        if (!order.customer.phone.startsWith('57') && order.customer.phone.length >= 10) {
+          order.customer.phone = '57' + order.customer.phone;
+        }
+        console.log(`  Usando teléfono de shipping_address: ${order.customer.phone}`);
+        phoneFound = true;
+      }
+      
+      // Si no se encontró, usar el número por defecto
+      if (!phoneFound) {
+        order.customer.phone = defaultPhone;
+        console.log(`  Asignando número por defecto: ${defaultPhone}`);
+      }
       
       // Guardar el pedido actualizado
       await order.save();
       
-      console.log(`Pedido ${order.order_id} corregido. Nuevo teléfono: ${order.customer.phone}`);
-      correctedCount++;
+      updatedCount++;
+      console.log(`  Pedido ${order.order_id} actualizado correctamente.`);
     }
     
-    console.log(`\nSe corrigieron ${correctedCount} pedidos`);
-    console.log('Corrección completada');
-  } catch (error) {
-    console.error('Error en la corrección:', error);
-  } finally {
-    // Cerrar la conexión a la base de datos
+    console.log(`Se actualizaron ${updatedCount} pedidos correctamente.`);
+    console.log('Proceso completado.');
+    
     process.exit(0);
+  } catch (error) {
+    console.error('Error al corregir los números de teléfono:', error);
+    process.exit(1);
   }
 }
 
 // Ejecutar la función principal
-fixNullPhones(); 
+fixNullPhoneNumbers(); 
