@@ -1,0 +1,119 @@
+/* Estilos para el chat */
+.chat-container {
+    height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 15px;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    position: relative;
+}
+
+.message-customer {
+    background-color: #e9ecef;
+    margin-right: auto;
+}
+
+.message-admin {
+    background-color: #d1e7dd;
+    margin-left: auto;
+}
+
+.message-system {
+    background-color: #f8d7da;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    max-width: 90%;
+}
+
+.message-sender {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.message-content {
+    word-wrap: break-word;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    color: #6c757d;
+    text-align: right;
+    margin-top: 5px;
+}
+
+.message-input {
+    display: flex;
+    margin-top: 15px;
+}
+
+.message-input input {
+    flex-grow: 1;
+    border-radius: 20px;
+    padding: 10px 15px;
+    border: 1px solid #ced4da;
+}
+
+.message-input button {
+    margin-left: 10px;
+    border-radius: 20px;
+}
+
+.order-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.order-info h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.order-info p {
+    margin-bottom: 5px;
+}
+
+.order-info .badge {
+    font-size: 0.9rem;
+}
+
+/* Estilos para mensajes en proceso de envío */
+.message-processing {
+    margin-top: 5px;
+    font-style: italic;
+    color: #6c757d;
+}
+
+.message.with-processing {
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.6;
+    }
+}
+
+.message-processing small {
+    animation: pulse 1.5s infinite;
+    display: inline-block;
+} 

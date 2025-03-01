@@ -499,11 +499,39 @@
                 // Limpiar el campo de entrada
                 messageInput.value = '';
                 
-                // Recargar el chat para mostrar el mensaje enviado
-                if (currentOrderId) {
-                    loadChatByOrderId(currentOrderId);
-                } else if (currentPhone) {
-                    loadChatByPhone(currentPhone);
+                // Mostrar mensaje temporal en la interfaz mientras se procesa
+                if (result.status === 'processing') {
+                    // Agregar mensaje temporal al chat
+                    const tempMessage = {
+                        _id: 'temp-' + Date.now(),
+                        order_id: currentOrderId,
+                        sender: 'ADMIN',
+                        message: message,
+                        phone: currentPhone,
+                        message_type: 'TEXT',
+                        created_at: new Date(),
+                        is_processing: true
+                    };
+                    
+                    // Agregar el mensaje temporal al chat
+                    addMessageToChat(tempMessage);
+                    
+                    // Esperar un momento para dar tiempo a que se procese el mensaje
+                    setTimeout(() => {
+                        // Recargar el chat para mostrar el mensaje enviado
+                        if (currentOrderId) {
+                            loadChatByOrderId(currentOrderId);
+                        } else if (currentPhone) {
+                            loadChatByPhone(currentPhone);
+                        }
+                    }, 2000);
+                } else {
+                    // Recargar el chat para mostrar el mensaje enviado
+                    if (currentOrderId) {
+                        loadChatByOrderId(currentOrderId);
+                    } else if (currentPhone) {
+                        loadChatByPhone(currentPhone);
+                    }
                 }
                 
                 console.log('Mensaje enviado correctamente:', result);
@@ -515,6 +543,65 @@
                 sendMessageBtn.disabled = false;
                 sendMessageBtn.innerHTML = '<i class="bi bi-send"></i> Enviar';
             }
+        }
+        
+        // Función para agregar un mensaje al chat
+        function addMessageToChat(message) {
+            // Crear elemento de mensaje
+            const messageElement = document.createElement('div');
+            
+            // Determinar la clase según el remitente
+            let messageClass, senderName, senderIcon;
+            switch (message.sender) {
+                case 'CUSTOMER':
+                    messageClass = 'message-customer';
+                    senderName = 'Cliente';
+                    senderIcon = 'bi-person';
+                    break;
+                case 'SYSTEM':
+                    messageClass = 'message-system';
+                    senderName = 'Sistema';
+                    senderIcon = 'bi-robot';
+                    break;
+                case 'ADMIN':
+                    messageClass = 'message-admin';
+                    senderName = 'Admin';
+                    senderIcon = 'bi-person-badge';
+                    break;
+                default:
+                    messageClass = 'message-system';
+                    senderName = 'Desconocido';
+                    senderIcon = 'bi-question-circle';
+            }
+            
+            // Agregar clases al elemento
+            messageElement.className = `message ${messageClass}`;
+            
+            // Formatear el mensaje (manejar saltos de línea)
+            const formattedMessage = message.message.replace(/\n/g, '<br>');
+            
+            // Formatear la fecha
+            const date = message.created_at ? new Date(message.created_at).toLocaleString('es-CO') : 'Fecha desconocida';
+            
+            // Si el mensaje está en proceso, agregar indicador
+            const processingIndicator = message.is_processing ? 
+                '<div class="message-processing"><small><i class="bi bi-clock"></i> Enviando...</small></div>' : '';
+            
+            // Establecer el contenido HTML
+            messageElement.innerHTML = `
+                <div class="message-sender">
+                    <i class="bi ${senderIcon}"></i> ${senderName}
+                </div>
+                <div class="message-content">${formattedMessage}</div>
+                <div class="message-time">${date}</div>
+                ${processingIndicator}
+            `;
+            
+            // Agregar el mensaje al contenedor
+            chatContainer.appendChild(messageElement);
+            
+            // Desplazarse al último mensaje
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
 </body>

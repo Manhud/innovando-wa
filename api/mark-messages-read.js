@@ -3,6 +3,7 @@ const orderService = require('../database/services/orderService');
 
 /**
  * Manejador para marcar mensajes como leídos
+ * Implementa un patrón de respuesta temprana para evitar timeouts en Vercel
  */
 module.exports = async (req, res) => {
   // Permitir CORS para desarrollo local
@@ -42,21 +43,35 @@ module.exports = async (req, res) => {
       });
     }
     
-    // Marcar los mensajes como leídos
-    await chatService.markMessagesAsRead(orderId);
-    
-    // Actualizar el estado de mensajes no leídos del pedido
-    await orderService.updateUnreadMessagesStatus(orderId, false);
-    
-    return res.status(200).json({ 
+    // Responder inmediatamente para evitar timeouts en Vercel
+    res.status(202).json({ 
       success: true, 
-      message: 'Mensajes marcados como leídos correctamente'
+      message: 'Procesando marcado de mensajes como leídos',
+      orderId,
+      status: 'processing'
     });
+    
+    // Continuar el procesamiento en segundo plano
+    try {
+      // Marcar los mensajes como leídos
+      await chatService.markMessagesAsRead(orderId);
+      
+      // Actualizar el estado de mensajes no leídos del pedido
+      await orderService.updateUnreadMessagesStatus(orderId, false);
+      
+      console.log(`Mensajes del pedido ${orderId} marcados como leídos correctamente`);
+    } catch (error) {
+      console.error(`Error al marcar mensajes como leídos para el pedido ${orderId}:`, error);
+      // No podemos enviar respuesta aquí porque ya respondimos
+    }
   } catch (error) {
     console.error('Error en el servidor:', error);
-    return res.status(500).json({ 
-      error: 'Error en el servidor', 
-      details: error.message 
-    });
+    // Solo enviar respuesta de error si aún no hemos respondido
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        error: 'Error en el servidor', 
+        details: error.message 
+      });
+    }
   }
 }; 
