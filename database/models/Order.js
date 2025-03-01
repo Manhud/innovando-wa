@@ -102,7 +102,7 @@ const OrderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['CREATED', 'MESSAGE_SENT', 'MESSAGE_FAILED'],
+    enum: ['CREATED', 'MESSAGE_SENT', 'MESSAGE_FAILED', 'CONFIRMADO', 'CANCELADO', 'MODIFICACION_SOLICITADA', 'CAMBIO_DIRECCION_SOLICITADO', 'RESPUESTA_RECIBIDA'],
     default: 'CREATED'
   },
   message_status: {

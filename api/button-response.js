@@ -191,14 +191,21 @@ async function handleButtonResponse(from, buttonId, buttonText) {
     // intentamos actualizar el pedido asociado al número de teléfono
     if (newStatus) {
       try {
+        console.log(`Intentando actualizar el estado del pedido a: ${newStatus}`);
+        
         // Buscar pedidos asociados al número de teléfono
+        console.log(`Buscando pedidos para el número: ${from}`);
         const orders = await orderService.getOrdersByPhone(from, { limit: 1 });
         
         if (orders && orders.length > 0) {
           const latestOrder = orders[0]; // Obtener el pedido más reciente
           
+          console.log(`Pedido encontrado para actualizar: ${latestOrder.order_id}`);
+          console.log(`Estado actual: ${latestOrder.status}`);
+          console.log(`Nuevo estado a establecer: ${newStatus}`);
+          
           // Actualizar el estado del pedido
-          await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
+          const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
             updated_at: new Date(),
             response_details: {
               button_id: buttonId,
@@ -207,12 +214,55 @@ async function handleButtonResponse(from, buttonId, buttonText) {
             }
           });
           
-          console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${newStatus}`);
+          console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${updatedOrder.status}`);
+          console.log(`Detalles del pedido actualizado: ${JSON.stringify({
+            id: updatedOrder.order_id,
+            status: updatedOrder.status,
+            updated_at: updatedOrder.updated_at
+          })}`);
         } else {
           console.log(`No se encontraron pedidos asociados al número ${from}`);
+          console.log('Verificando formato del número de teléfono...');
+          
+          // Intentar con diferentes formatos del número
+          const phoneFormats = [
+            from,
+            from.replace(/\D/g, ''),
+            from.startsWith('57') ? from.substring(2) : `57${from.replace(/\D/g, '')}`
+          ];
+          
+          console.log(`Intentando con formatos alternativos: ${phoneFormats.join(', ')}`);
+          
+          // Intentar buscar con cada formato
+          for (const phoneFormat of phoneFormats) {
+            if (phoneFormat === from) continue; // Ya lo intentamos
+            
+            console.log(`Buscando con formato alternativo: ${phoneFormat}`);
+            const altOrders = await orderService.getOrdersByPhone(phoneFormat, { limit: 1 });
+            
+            if (altOrders && altOrders.length > 0) {
+              const latestOrder = altOrders[0];
+              console.log(`Pedido encontrado con formato alternativo: ${latestOrder.order_id}`);
+              
+              // Actualizar el estado del pedido
+              const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
+                updated_at: new Date(),
+                response_details: {
+                  button_id: buttonId,
+                  button_text: buttonText,
+                  response_time: new Date(),
+                  phone_format_used: phoneFormat
+                }
+              });
+              
+              console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${updatedOrder.status}`);
+              break;
+            }
+          }
         }
       } catch (updateError) {
         console.error('Error al actualizar el estado del pedido:', updateError);
+        console.error('Stack trace:', updateError.stack);
       }
     }
     
@@ -222,3 +272,6 @@ async function handleButtonResponse(from, buttonId, buttonText) {
     // No propagamos el error para evitar que falle todo el webhook
   }
 }
+
+// Exportar el módulo principal y la función handleButtonResponse para pruebas
+module.exports.handleButtonResponse = handleButtonResponse;
