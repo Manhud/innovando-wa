@@ -113,31 +113,49 @@ const orderService = {
    */
   async getOrdersByPhone(phone, options = {}) {
     try {
-      // Eliminar caracteres no numéricos del teléfono para la búsqueda
-      const cleanPhone = phone.replace(/\D/g, '');
+      if (!phone) {
+        console.error('Error: Se intentó buscar con un número de teléfono vacío o nulo');
+        return [];
+      }
       
-      console.log(`Buscando pedidos para el teléfono limpio: ${cleanPhone}`);
+      // Eliminar caracteres no numéricos del teléfono para la búsqueda
+      const cleanPhone = phone.toString().replace(/\D/g, '');
+      
+      console.log(`Buscando pedidos para el teléfono: "${phone}" (limpio: "${cleanPhone}")`);
       
       // Crear múltiples patrones de búsqueda para aumentar las posibilidades de coincidencia
       const patterns = [];
       
-      // Patrón 1: Últimos 10 dígitos (número sin prefijo de país)
+      // Patrón 1: Número exacto como se proporcionó
+      patterns.push(new RegExp(`^${phone}$`));
+      
+      // Patrón 2: Número limpio exacto
+      patterns.push(new RegExp(`^${cleanPhone}$`));
+      
+      // Patrón 3: Últimos 10 dígitos (número sin prefijo de país)
       if (cleanPhone.length >= 10) {
         patterns.push(new RegExp(cleanPhone.slice(-10)));
       }
       
-      // Patrón 2: Número completo
-      patterns.push(new RegExp(cleanPhone));
-      
-      // Patrón 3: Si el número comienza con '57', también buscar sin el prefijo
+      // Patrón 4: Si el número comienza con '57', también buscar sin el prefijo
       if (cleanPhone.startsWith('57') && cleanPhone.length > 2) {
         patterns.push(new RegExp(cleanPhone.substring(2)));
       }
       
-      // Patrón 4: Si el número no comienza con '57', también buscar con el prefijo
+      // Patrón 5: Si el número no comienza con '57', también buscar con el prefijo
       if (!cleanPhone.startsWith('57')) {
         patterns.push(new RegExp(`57${cleanPhone}`));
       }
+      
+      // Patrón 6: Con el formato +57
+      if (!cleanPhone.startsWith('57')) {
+        patterns.push(new RegExp(`\\+57${cleanPhone}`));
+      } else {
+        patterns.push(new RegExp(`\\+${cleanPhone}`));
+      }
+      
+      // Patrón 7: Búsqueda parcial (contiene el número)
+      patterns.push(new RegExp(cleanPhone));
       
       // Construir la consulta con OR para cualquiera de los patrones
       const query = {
@@ -160,10 +178,24 @@ const orderService = {
       if (orders.length > 0) {
         console.log('Pedidos encontrados:');
         orders.forEach((order, index) => {
-          console.log(`${index + 1}. ID: ${order.order_id}, Estado: ${order.status}, Teléfono: ${order.customer.phone}`);
+          console.log(`${index + 1}. ID: ${order.order_id}, Estado: ${order.status}, Teléfono: "${order.customer.phone}"`);
         });
       } else {
         console.log('No se encontraron pedidos para este número de teléfono');
+        
+        // Búsqueda alternativa: mostrar todos los pedidos recientes para depuración
+        console.log('Mostrando pedidos recientes para depuración:');
+        const recentOrders = await Order.find()
+          .sort({ created_at: -1 })
+          .limit(5);
+        
+        if (recentOrders.length > 0) {
+          recentOrders.forEach((order, index) => {
+            console.log(`${index + 1}. ID: ${order.order_id}, Teléfono: "${order.customer.phone}", Estado: ${order.status}`);
+          });
+        } else {
+          console.log('No hay pedidos recientes en la base de datos');
+        }
       }
       
       return orders;
@@ -199,6 +231,47 @@ const orderService = {
       return orders;
     } catch (error) {
       console.error('Error al obtener los pedidos:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Elimina un pedido de la base de datos
+   * @param {string} orderId - ID del pedido a eliminar
+   * @returns {Promise<Object>} Resultado de la operación
+   */
+  async deleteOrder(orderId) {
+    try {
+      // Verificar que el pedido existe antes de eliminarlo
+      const order = await Order.findOne({ order_id: orderId });
+      
+      if (!order) {
+        throw new Error(`Pedido con ID ${orderId} no encontrado`);
+      }
+      
+      // Guardar información del pedido para el registro
+      const orderInfo = {
+        id: order.order_id,
+        customer: order.customer,
+        status: order.status,
+        created_at: order.created_at
+      };
+      
+      // Eliminar el pedido
+      const result = await Order.deleteOne({ order_id: orderId });
+      
+      if (result.deletedCount === 1) {
+        console.log(`Pedido ${orderId} eliminado correctamente`);
+        return { 
+          success: true, 
+          message: `Pedido ${orderId} eliminado correctamente`,
+          deletedOrder: orderInfo
+        };
+      } else {
+        throw new Error(`No se pudo eliminar el pedido ${orderId}`);
+      }
+    } catch (error) {
+      console.error(`Error al eliminar el pedido ${orderId}:`, error);
       throw error;
     }
   }

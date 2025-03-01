@@ -20,6 +20,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const getOrdersHandler = require('./api/get-orders');
 const getOrderHandler = require('./api/get-order');
 const ordersPageHandler = require('./api/orders');
+const deleteOrderHandler = require('./api/delete-order');
 
 // Rutas de la API
 app.post('/api/webhook', webhookHandler);
@@ -29,6 +30,7 @@ app.post('/api/button-response', buttonResponseHandler);
 app.get('/api/get-orders', getOrdersHandler);
 app.get('/api/get-order', getOrderHandler);
 app.get('/orders', ordersPageHandler);
+app.delete('/api/delete-order', deleteOrderHandler);
 
 // Rutas de compatibilidad para mantener las rutas antiguas funcionando
 app.get('/api/orders', getOrdersHandler);

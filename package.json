@@ -13,7 +13,10 @@
     "test-status": "node test/test-order-status.js",
     "test-find-phone": "node test/test-find-by-phone.js",
     "test-update-status": "node test/test-update-status.js",
-    "test-button-update": "node test/test-button-update.js"
+    "test-button-update": "node test/test-button-update.js",
+    "test-phone-debug": "node test/test-phone-debug.js",
+    "test-delete-order": "node test/test-delete-order.js",
+    "test-delete-button": "node test/test-delete-button.js"
   },
   "keywords": [],
   "author": "",
