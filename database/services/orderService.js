@@ -116,13 +116,35 @@ const orderService = {
       // Eliminar caracteres no numéricos del teléfono para la búsqueda
       const cleanPhone = phone.replace(/\D/g, '');
       
-      // Crear un patrón de búsqueda que sea flexible con el formato del teléfono
-      const phonePattern = new RegExp(cleanPhone.slice(-10)); // Últimos 10 dígitos
+      console.log(`Buscando pedidos para el teléfono limpio: ${cleanPhone}`);
       
-      // Buscar pedidos donde el teléfono del cliente coincida con el patrón
+      // Crear múltiples patrones de búsqueda para aumentar las posibilidades de coincidencia
+      const patterns = [];
+      
+      // Patrón 1: Últimos 10 dígitos (número sin prefijo de país)
+      if (cleanPhone.length >= 10) {
+        patterns.push(new RegExp(cleanPhone.slice(-10)));
+      }
+      
+      // Patrón 2: Número completo
+      patterns.push(new RegExp(cleanPhone));
+      
+      // Patrón 3: Si el número comienza con '57', también buscar sin el prefijo
+      if (cleanPhone.startsWith('57') && cleanPhone.length > 2) {
+        patterns.push(new RegExp(cleanPhone.substring(2)));
+      }
+      
+      // Patrón 4: Si el número no comienza con '57', también buscar con el prefijo
+      if (!cleanPhone.startsWith('57')) {
+        patterns.push(new RegExp(`57${cleanPhone}`));
+      }
+      
+      // Construir la consulta con OR para cualquiera de los patrones
       const query = {
-        'customer.phone': { $regex: phonePattern }
+        $or: patterns.map(pattern => ({ 'customer.phone': { $regex: pattern } }))
       };
+      
+      console.log(`Patrones de búsqueda: ${patterns.map(p => p.toString())}`);
       
       // Aplicar opciones adicionales
       const limit = options.limit || 10;
@@ -133,6 +155,17 @@ const orderService = {
         .limit(limit);
       
       console.log(`Se encontraron ${orders.length} pedidos para el teléfono ${phone}`);
+      
+      // Registrar los IDs de los pedidos encontrados para depuración
+      if (orders.length > 0) {
+        console.log('Pedidos encontrados:');
+        orders.forEach((order, index) => {
+          console.log(`${index + 1}. ID: ${order.order_id}, Estado: ${order.status}, Teléfono: ${order.customer.phone}`);
+        });
+      } else {
+        console.log('No se encontraron pedidos para este número de teléfono');
+      }
+      
       return orders;
     } catch (error) {
       console.error(`Error al buscar pedidos por teléfono ${phone}:`, error);
