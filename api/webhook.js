@@ -192,97 +192,50 @@ module.exports = async (req, res) => {
       const savedOrder = await orderService.createOrder(order);
       console.log(`Pedido guardado en la base de datos con ID: ${savedOrder.order_id}`);
 
-      // Preparar los datos para el mensaje
-      const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || "Cliente";
-      const pedido = order.line_items
-        ?.map(item => `${item.quantity}x ${item.name}`)
-        .join(", ") || "productos";
-      const totalAmount = new Intl.NumberFormat('es-CO', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).format(order.total_price || 0);
-      const city = order.shipping_address?.city || "Ciudad desconocida";
-      const address = order.shipping_address?.address1 || "Dirección desconocida";
-
       // Usar el número de teléfono que encontramos
       const formattedPhone = formatPhoneNumber(customerPhone);
 
       try {
         console.log(`Enviando mensaje de confirmación a ${formattedPhone}`);
         
-        // Usar el mensaje original que funcionaba correctamente
-        const message = `
-¡Hola, ${customerName} -!
-Recuerda por favor verificar todos tus datos y confirmar tu pedido.
+        // Preparar los datos para la plantilla
+        const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || "Cliente";
+        const pedido = order.line_items
+          ?.map(item => `${item.quantity}x ${item.name}`)
+          .join(", ") || "productos";
+        const totalAmount = new Intl.NumberFormat('es-CO', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(order.total_price || 0);
+        const city = order.shipping_address?.city || "Ciudad desconocida";
+        const address = order.shipping_address?.address1 || "Dirección desconocida";
 
-✅ Te escribimos de *INNOVANDOSHOP.COM*, hemos recibido tu orden que contiene ${pedido} por un valor total a pagar de $${totalAmount}
-
-🚚 Tu pedido se entregará en la ciudad de ${city}. en la dirección ${address} -  en el transcurso de 2 a 4 días hábiles.
-
-🚨Debido al alto volumen de pedidos que tenemos al día, priorizamos las entregas de quienes confirman su pedido.
-
-*¡Gracias por confiar en INNOVANDO!* 😀`;
-
-        // Opción 1: Usar plantilla predefinida
-        if (process.env.USE_TEMPLATE === 'true') {
-          const parameters = [
-            { type: "text", text: customerName },
-            { type: "text", text: pedido },
-            { type: "text", text: totalAmount },
-            { type: "text", text: city },
-            { type: "text", text: address }
-          ];
-          
-          const response = await sendTemplateMessage(formattedPhone, "validate_order", "es", parameters);
-          console.log('Respuesta de plantilla:', response);
-          
-          // Actualizar el estado del pedido a MESSAGE_SENT
-          await orderService.updateOrderMessageStatus(
-            savedOrder.order_id, 
-            true, 
-            { id: response.messages?.[0]?.id }
-          );
-          
-          // Guardar el mensaje enviado en el chat
-          await chatService.saveSystemMessage(
-            savedOrder.order_id,
-            formattedPhone,
-            `Mensaje de plantilla enviado: validate_order`,
-            'TEXT'
-          );
-        } 
-        // Opción 2: Usar mensaje con botones
-        else {
-          const buttons = [
-            { id: "confirm", title: "Confirmar pedido" },
-            { id: "change", title: "Modificar pedido" },
-            { id: "cancel", title: "Cancelar pedido" }
-          ];
-          
-          const response = await sendButtonMessage(
-            formattedPhone,
-            message,
-            buttons,
-            "CONFIRMA TU PEDIDO",
-          );
-          
-          console.log('Respuesta de botones:', response);
-          
-          // Actualizar el estado del pedido a MESSAGE_SENT
-          await orderService.updateOrderMessageStatus(
-            savedOrder.order_id, 
-            true, 
-            { id: response.messages?.[0]?.id }
-          );
-          
-          // Guardar el mensaje enviado en el chat
-          await chatService.saveSystemMessage(
-            savedOrder.order_id,
-            formattedPhone,
-            message,
-            'BUTTON'
-          );
-        }
+        // Siempre usar la plantilla validate_order para órdenes de Shopify
+        const parameters = [
+           { type: "text", text: customerName, parameter_name: "nombre" },
+              { type: "text", text: pedido, parameter_name: "pedido" },
+              { type: "text", text: totalAmount, parameter_name: "total" },
+              { type: "text", text: city, parameter_name: "ciudad" },
+              { type: "text", text: address, parameter_name: "direccion" }
+        ];
+        
+        const response = await sendTemplateMessage(formattedPhone, "validate_order", "es", parameters);
+        console.log('Respuesta de plantilla:', response);
+        
+        // Actualizar el estado del pedido a MESSAGE_SENT
+        await orderService.updateOrderMessageStatus(
+          savedOrder.order_id, 
+          true, 
+          { id: response.messages?.[0]?.id }
+        );
+        
+        // Guardar el mensaje enviado en el chat
+        await chatService.saveSystemMessage(
+          savedOrder.order_id,
+          formattedPhone,
+          `Mensaje de plantilla enviado: validate_order`,
+          'TEMPLATE'
+        );
         
         return res.status(200).json({ 
           message: "Mensaje enviado correctamente.",
