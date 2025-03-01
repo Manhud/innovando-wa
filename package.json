@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "init-db": "node database/init.js",
     "test-db": "node database/test-connection.js",
-    "test-order": "node test/send-test-order.js"
+    "test-order": "node test/send-test-order.js",
+    "test-buttons": "node test/test-buttons.js"
   },
   "keywords": [],
   "author": "",

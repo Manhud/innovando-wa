@@ -2,8 +2,13 @@
 const { connectToDatabase } = require('../database/connection');
 const orderService = require('../database/services/orderService');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const { sendTextMessage, sendButtonMessage, sendTemplateMessage, formatPhoneNumber } = require('../utils/whatsapp-api');
 
 module.exports = async (req, res) => {
+  // Siempre responder con 200 OK para evitar que Meta reintente constantemente
+  // Esto es una práctica recomendada para webhooks de WhatsApp
+  const respondSuccess = () => res.status(200).json({ status: 'ok' });
+
   // Configurar CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -31,9 +36,36 @@ module.exports = async (req, res) => {
     return res.status(403).end();
   }
 
-  // Manejar solicitudes POST (recibir pedidos)
+  // Manejar solicitudes POST
   if (req.method === 'POST') {
     try {
+      console.log('Webhook POST recibido:', JSON.stringify(req.body, null, 2));
+      
+      // Verificar si es una notificación de WhatsApp
+      if (req.body.object === 'whatsapp_business_account') {
+        console.log('Notificación de WhatsApp Business recibida');
+        
+        // Procesar la notificación de WhatsApp
+        if (req.body.entry && req.body.entry.length > 0) {
+          for (const entry of req.body.entry) {
+            if (entry.changes && entry.changes.length > 0) {
+              for (const change of entry.changes) {
+                if (change.value && change.value.messages && change.value.messages.length > 0) {
+                  console.log('Mensajes encontrados en la notificación');
+                  
+                  // Responder a la notificación para evitar reenvíos
+                  return respondSuccess();
+                }
+              }
+            }
+          }
+        }
+        
+        // Si llegamos aquí, es una notificación sin mensajes
+        console.log('Notificación sin mensajes');
+        return respondSuccess();
+      }
+      
       // Conectar a la base de datos
       await connectToDatabase();
       
@@ -58,77 +90,68 @@ module.exports = async (req, res) => {
       }).format(order.total_price || 0);
 
       const city = order.shipping_address?.city || "Ciudad desconocida";
-      const address = order.shipping_address?.address1 || "Dirección desconocida"
+      const address = order.shipping_address?.address1 || "Dirección desconocida";
 
-      const message = {
-        messaging_product: "whatsapp",
-        "recipient_type": "individual",
-        to: "573232205135",
-        type: "template",
-        template: {
-          name: "validate_order",
-          language: { code: "es" },
-          components: [
-            { 
-              type: "body", 
-              parameters: [
-                { type: "text", text: customerName, parameter_name: "nombre" },
-                { type: "text", text: pedido, parameter_name: "pedido" },
-                { type: "text", text: totalAmount, parameter_name: "total" },
-                { type: "text", text: city, parameter_name: "ciudad" },
-                { type: "text", text: address, parameter_name: "direccion" }
-              ]
-            }
-          ]
-        }
-      };
+      // Número de teléfono del cliente (con formato internacional)
+      const customerPhone = order.customer?.phone || "573232205135"; // Número por defecto si no hay teléfono
+      const formattedPhone = formatPhoneNumber(customerPhone);
 
       try {
-        const response = await fetch(
-          `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
-            },
-            body: JSON.stringify(message),
-          }
-        );
-
-        if (response.ok) {
-          const responseData = await response.json();
+        console.log(`Enviando mensaje de confirmación a ${formattedPhone}`);
+        
+        // Opción 1: Usar plantilla predefinida
+        if (process.env.USE_TEMPLATE === 'true') {
+          const parameters = [
+            { type: "text", text: customerName },
+            { type: "text", text: pedido },
+            { type: "text", text: totalAmount },
+            { type: "text", text: city },
+            { type: "text", text: address }
+          ];
+          
+          const response = await sendTemplateMessage(formattedPhone, "validate_order", "es", parameters);
+          console.log('Respuesta de plantilla:', response);
           
           // Actualizar el estado del pedido a MESSAGE_SENT
           await orderService.updateOrderMessageStatus(
             savedOrder.order_id, 
             true, 
-            { id: responseData.messages?.[0]?.id }
+            { id: response.messages?.[0]?.id }
+          );
+        } 
+        // Opción 2: Usar mensaje con botones
+        else {
+          const bodyText = `Hola ${customerName}, hemos recibido tu pedido de ${pedido} por $${totalAmount} con envío a ${city}, ${address}. ¿Deseas confirmar?`;
+          
+          const buttons = [
+            { id: "confirm", title: "Confirmar pedido" },
+            { id: "change", title: "Modificar pedido" },
+            { id: "cancel", title: "Cancelar pedido" }
+          ];
+          
+          const response = await sendButtonMessage(
+            formattedPhone,
+            bodyText,
+            buttons,
+            "Confirmación de Pedido",
+            "Selecciona una opción"
           );
           
-          return res.status(200).json({ 
-            message: "Mensaje enviado correctamente.",
-            order_id: savedOrder.order_id,
-            status: 'MESSAGE_SENT'
-          });
-        } else {
-          const errorDetails = await response.json();
-          console.error("Error en la respuesta de WhatsApp:", errorDetails);
+          console.log('Respuesta de botones:', response);
           
-          // Actualizar el estado del pedido a MESSAGE_FAILED
+          // Actualizar el estado del pedido a MESSAGE_SENT
           await orderService.updateOrderMessageStatus(
             savedOrder.order_id, 
-            false, 
-            { error: errorDetails.error?.message || 'Error desconocido' }
+            true, 
+            { id: response.messages?.[0]?.id }
           );
-          
-          return res.status(500).json({
-            message: "Error al enviar el mensaje de WhatsApp.",
-            details: errorDetails,
-            order_id: savedOrder.order_id,
-            status: 'MESSAGE_FAILED'
-          });
         }
+        
+        return res.status(200).json({ 
+          message: "Mensaje enviado correctamente.",
+          order_id: savedOrder.order_id,
+          status: 'MESSAGE_SENT'
+        });
       } catch (whatsappError) {
         console.error("Error al enviar mensaje a WhatsApp:", whatsappError);
         
@@ -147,7 +170,7 @@ module.exports = async (req, res) => {
       }
     } catch (error) {
       console.error("Error en el servidor:", error);
-      return res.status(500).json({ error: "Error en el servidor." });
+      return res.status(500).json({ error: "Error en el servidor.", details: error.message });
     }
   }
 
