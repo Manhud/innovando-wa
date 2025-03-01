@@ -145,7 +145,7 @@ async function handleButtonResponse(from, buttonId, buttonText) {
       responseMessage = "¡Gracias por confirmar tu pedido! 🎉\n\n" +
         "Tu pedido ha sido registrado y será procesado inmediatamente.\n" +
         "Te mantendremos informado sobre el estado de tu envío. 📦\n\n" +
-        "¿Necesitas algo más? Estamos aquí para ayudarte. 😊";
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
       newStatus = "CONFIRMED";
     } 
     else if (buttonId === 'change' || buttonText === 'Modificar' || buttonText === 'Modificar pedido') {
@@ -154,7 +154,8 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         "- Cantidad\n" +
         "- Producto\n" +
         "- Otro\n\n" +
-        "Un asesor te atenderá en breve. 👨‍💼";
+        "Un asesor te atenderá en breve. 👨‍💼\n\n" +
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
       newStatus = "CHANGE_REQUESTED";
     } 
     else if (buttonText === 'Modificar datos de envío') {
@@ -164,15 +165,19 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         "2. Ciudad\n" +
         "3. Nombre del destinatario\n" +
         "4. Teléfono de contacto\n\n" +
-        "Un asesor procesará los cambios pronto. ✅";
+        "Un asesor procesará los cambios pronto. ✅\n\n" +
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
       newStatus = "ADDRESS_CHANGE_REQUESTED";
     }
-    else if (buttonId === 'cancel' || buttonText === 'Cancelar') {
-      responseMessage = "Lamentamos que hayas cancelado tu pedido. ¿Podemos ayudarte con algo más?";
+    else if (buttonId === 'cancel' || buttonText === 'Cancelar' || buttonText === 'Cancelar pedido') {
+      responseMessage = "Lamentamos que hayas cancelado tu pedido. 😔\n\n" +
+        "Si deseas realizar un nuevo pedido o tienes alguna pregunta, no dudes en contactarnos.\n\n" +
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
       newStatus = "CANCELLED";
     } 
     else {
-      responseMessage = "Hemos recibido tu respuesta. Gracias por contactarnos.";
+      responseMessage = "Hemos recibido tu respuesta. Gracias por contactarnos.\n\n" +
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
       newStatus = "RESPONSE_RECEIVED";
       console.log(`Botón no reconocido específicamente: "${buttonText}" (ID: ${buttonId})`);
     }
