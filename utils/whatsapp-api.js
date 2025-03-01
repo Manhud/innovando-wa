@@ -1,3 +1,5 @@
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 /**
  * Envía un mensaje de texto simple a través de WhatsApp
  * @param {string} to - Número de teléfono del destinatario
@@ -5,7 +7,7 @@
  * @param {number} retryCount - Número de intentos (para uso interno)
  * @returns {Promise<object>} - Respuesta de la API
  */
-export async function sendTextMessage(to, message, retryCount = 0) {
+async function sendTextMessage(to, message, retryCount = 0) {
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 1000; // 1 segundo
 
@@ -70,3 +72,7 @@ export async function sendTextMessage(to, message, retryCount = 0) {
     throw error;
   }
 }
+
+module.exports = {
+  sendTextMessage
+};

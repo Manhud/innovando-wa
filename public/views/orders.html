@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pedidos - Innovando WA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 2rem;
+            background-color: #f8f9fa;
+        }
+        .status-badge {
+            font-weight: bold;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+        }
+        .status-created {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+        .status-sent {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        .status-failed {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        .order-details {
+            cursor: pointer;
+        }
+        .table-responsive {
+            margin-bottom: 2rem;
+        }
+        .refresh-btn {
+            margin-bottom: 1rem;
+        }
+        .loading {
+            display: none;
+            margin-left: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Gestión de Pedidos</h1>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="refreshBtn" class="btn btn-primary refresh-btn">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar
+                <span class="spinner-border spinner-border-sm loading" id="loadingSpinner" role="status" aria-hidden="true"></span>
+            </button>
+            <div class="text-end">
+                <span class="badge bg-info text-dark me-2">Total: <span id="totalOrders">0</span></span>
+                <span class="badge bg-success">Enviados: <span id="sentOrders">0</span></span>
+                <span class="badge bg-danger ms-2">Fallidos: <span id="failedOrders">0</span></span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Productos</th>
+                        <th>Total</th>
+                        <th>Ciudad</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                    <!-- Los datos de los pedidos se cargarán aquí -->
+                    <tr>
+                        <td colspan="7" class="text-center">Cargando datos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal para detalles del pedido -->
+        <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="orderDetailsModalLabel">Detalles del Pedido</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="orderDetailsContent">
+                        <!-- Los detalles del pedido se cargarán aquí -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Elementos del DOM
+        const ordersTableBody = document.getElementById('ordersTableBody');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const totalOrdersElement = document.getElementById('totalOrders');
+        const sentOrdersElement = document.getElementById('sentOrders');
+        const failedOrdersElement = document.getElementById('failedOrders');
+        const orderDetailsContent = document.getElementById('orderDetailsContent');
+        
+        // Modal de Bootstrap
+        let orderDetailsModal;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar el modal
+            orderDetailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+            
+            // Cargar los pedidos al cargar la página
+            loadOrders();
+            
+            // Configurar el botón de actualizar
+            refreshBtn.addEventListener('click', loadOrders);
+        });
+        
+        // Función para cargar los pedidos desde la API
+        async function loadOrders() {
+            try {
+                // Mostrar el spinner de carga
+                loadingSpinner.style.display = 'inline-block';
+                refreshBtn.disabled = true;
+                
+                // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
+                let response;
+                try {
+                    response = await fetch('/api/get-orders');
+                    if (!response.ok) {
+                        throw new Error('Ruta nueva no disponible');
+                    }
+                } catch (error) {
+                    console.log('Intentando con ruta alternativa...');
+                    response = await fetch('/api/orders');
+                    if (!response.ok) {
+                        throw new Error(`Error al cargar los pedidos: ${response.status}`);
+                    }
+                }
+                
+                const orders = await response.json();
+                
+                // Actualizar la tabla con los pedidos
+                updateOrdersTable(orders);
+                
+                // Actualizar los contadores
+                updateCounters(orders);
+            } catch (error) {
+                console.error('Error al cargar los pedidos:', error);
+                ordersTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-danger">
+                            Error al cargar los pedidos: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            } finally {
+                // Ocultar el spinner de carga
+                loadingSpinner.style.display = 'none';
+                refreshBtn.disabled = false;
+            }
+        }
+        
+        // Función para actualizar la tabla de pedidos
+        function updateOrdersTable(orders) {
+            if (orders.length === 0) {
+                ordersTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">No hay pedidos disponibles</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Ordenar los pedidos por fecha (más recientes primero)
+            orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Generar las filas de la tabla
+            const tableRows = orders.map(order => {
+                const customerName = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Cliente';
+                const products = order.line_items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+                const total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total_price);
+                const city = order.shipping_address.city || 'N/A';
+                const date = new Date(order.created_at).toLocaleString('es-CO');
+                
+                // Determinar la clase y texto del estado
+                let statusClass, statusText;
+                switch (order.status) {
+                    case 'CREATED':
+                        statusClass = 'status-created';
+                        statusText = 'Creado';
+                        break;
+                    case 'MESSAGE_SENT':
+                        statusClass = 'status-sent';
+                        statusText = 'Enviado';
+                        break;
+                    case 'MESSAGE_FAILED':
+                        statusClass = 'status-failed';
+                        statusText = 'Fallido';
+                        break;
+                    default:
+                        statusClass = '';
+                        statusText = order.status || 'Desconocido';
+                }
+                
+                return `
+                    <tr class="order-details" data-order-id="${order.order_id}">
+                        <td>${order.order_id}</td>
+                        <td>${customerName}</td>
+                        <td>${products.length > 50 ? products.substring(0, 50) + '...' : products}</td>
+                        <td>${total}</td>
+                        <td>${city}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${date}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Actualizar el contenido de la tabla
+            ordersTableBody.innerHTML = tableRows;
+            
+            // Agregar eventos de clic a las filas
+            document.querySelectorAll('.order-details').forEach(row => {
+                row.addEventListener('click', () => {
+                    const orderId = row.getAttribute('data-order-id');
+                    showOrderDetails(orderId);
+                });
+            });
+        }
+        
+        // Función para actualizar los contadores
+        function updateCounters(orders) {
+            const total = orders.length;
+            const sent = orders.filter(order => order.status === 'MESSAGE_SENT').length;
+            const failed = orders.filter(order => order.status === 'MESSAGE_FAILED').length;
+            
+            totalOrdersElement.textContent = total;
+            sentOrdersElement.textContent = sent;
+            failedOrdersElement.textContent = failed;
+        }
+        
+        // Función para mostrar los detalles de un pedido
+        async function showOrderDetails(orderId) {
+            try {
+                // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
+                let response;
+                try {
+                    response = await fetch(`/api/get-order?orderId=${orderId}`);
+                    if (!response.ok) {
+                        throw new Error('Ruta nueva no disponible');
+                    }
+                } catch (error) {
+                    console.log('Intentando con ruta alternativa...');
+                    response = await fetch(`/api/orders/${orderId}`);
+                    if (!response.ok) {
+                        throw new Error(`Error al cargar los detalles del pedido: ${response.status}`);
+                    }
+                }
+                
+                const order = await response.json();
+                
+                // Formatear los datos del pedido
+                const customerName = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Cliente';
+                const customerEmail = order.customer.email || 'N/A';
+                const customerPhone = order.customer.phone || 'N/A';
+                const address = order.shipping_address.address1 || 'N/A';
+                const city = order.shipping_address.city || 'N/A';
+                const state = order.shipping_address.state || 'N/A';
+                const country = order.shipping_address.country || 'N/A';
+                const total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total_price);
+                const createdAt = new Date(order.created_at).toLocaleString('es-CO');
+                const updatedAt = new Date(order.updated_at).toLocaleString('es-CO');
+                
+                // Generar el HTML para los productos
+                const productsHtml = order.line_items.map(item => {
+                    const itemTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(item.price * item.quantity);
+                    return `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td>${item.quantity}</td>
+                            <td>${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(item.price)}</td>
+                            <td>${itemTotal}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                // Determinar la clase y texto del estado
+                let statusClass, statusText;
+                switch (order.status) {
+                    case 'CREATED':
+                        statusClass = 'bg-info text-dark';
+                        statusText = 'Creado';
+                        break;
+                    case 'MESSAGE_SENT':
+                        statusClass = 'bg-success';
+                        statusText = 'Mensaje Enviado';
+                        break;
+                    case 'MESSAGE_FAILED':
+                        statusClass = 'bg-danger';
+                        statusText = 'Mensaje Fallido';
+                        break;
+                    default:
+                        statusClass = 'bg-secondary';
+                        statusText = order.status || 'Desconocido';
+                }
+                
+                // Actualizar el contenido del modal
+                orderDetailsContent.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6>Información del Pedido</h6>
+                            <p><strong>ID:</strong> ${order.order_id}</p>
+                            <p><strong>Estado:</strong> <span class="badge ${statusClass}">${statusText}</span></p>
+                            <p><strong>Fecha de Creación:</strong> ${createdAt}</p>
+                            <p><strong>Última Actualización:</strong> ${updatedAt}</p>
+                            <p><strong>Total:</strong> ${total}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información del Cliente</h6>
+                            <p><strong>Nombre:</strong> ${customerName}</p>
+                            <p><strong>Email:</strong> ${customerEmail}</p>
+                            <p><strong>Teléfono:</strong> ${customerPhone}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6>Dirección de Envío</h6>
+                            <p><strong>Dirección:</strong> ${address}</p>
+                            <p><strong>Ciudad:</strong> ${city}</p>
+                            <p><strong>Estado/Provincia:</strong> ${state}</p>
+                            <p><strong>País:</strong> ${country}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Productos</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Cantidad</th>
+                                            <th>Precio Unitario</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${productsHtml}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="3" class="text-end">Total:</th>
+                                            <th>${total}</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${order.message_status ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Información del Mensaje</h6>
+                            <p><strong>Estado del Mensaje:</strong> ${order.message_status}</p>
+                            ${order.message_id ? `<p><strong>ID del Mensaje:</strong> ${order.message_id}</p>` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                // Mostrar el modal
+                orderDetailsModal.show();
+            } catch (error) {
+                console.error('Error al cargar los detalles del pedido:', error);
+                alert(`Error al cargar los detalles del pedido: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,58 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/get-orders",
+      "dest": "/api/get-orders.js"
+    },
+    {
+      "src": "/api/get-order",
+      "dest": "/api/get-order.js"
+    },
+    {
+      "src": "/api/orders",
+      "dest": "/api/get-orders.js"
+    },
+    {
+      "src": "/api/orders/(.*)",
+      "dest": "/api/get-order.js?orderId=$1"
+    },
+    {
+      "src": "/orders",
+      "dest": "/api/orders.js"
+    },
+    {
+      "src": "/api/webhook",
+      "dest": "/api/webhook.js"
+    },
+    {
+      "src": "/api/button-response",
+      "dest": "/api/button-response.js"
+    },
+    {
+      "src": "/(.+\\.[a-z]+)$",
+      "dest": "/public/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+} 

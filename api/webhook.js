@@ -1,3 +1,8 @@
+// Endpoint para el webhook
+const { connectToDatabase } = require('../database/connection');
+const orderService = require('../database/services/orderService');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 module.exports = async (req, res) => {
   // Verificar método
   if (req.method !== 'POST') {
@@ -10,12 +15,19 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
+    // Conectar a la base de datos
+    await connectToDatabase();
+    
     const order = req.body;
     console.log('Orden recibida:', order);
 
     if (!order || !order.customer || !order.shipping_address) {
       return res.status(400).json({ error: "Datos del pedido incompletos." });
     }
+
+    // Guardar el pedido en la base de datos con estado CREATED
+    const savedOrder = await orderService.createOrder(order);
+    console.log(`Pedido guardado en la base de datos con ID: ${savedOrder.order_id}`);
 
     const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || "Cliente";
     const pedido = order.line_items
@@ -52,26 +64,66 @@ module.exports = async (req, res) => {
       }
     };
 
-    const response = await fetch(
-      `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify(message),
-      }
-    );
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify(message),
+        }
+      );
 
-    if (response.ok) {
-      return res.status(200).json({ message: "Mensaje enviado correctamente." });
-    } else {
-      const errorDetails = await response.json();
-      console.error("Error en la respuesta de WhatsApp:", errorDetails);
-      return res.status(500).json({
-        message: "Error al enviar el mensaje de WhatsApp.",
-        details: errorDetails,
+      if (response.ok) {
+        const responseData = await response.json();
+        
+        // Actualizar el estado del pedido a MESSAGE_SENT
+        await orderService.updateOrderMessageStatus(
+          savedOrder.order_id, 
+          true, 
+          { id: responseData.messages?.[0]?.id }
+        );
+        
+        return res.status(200).json({ 
+          message: "Mensaje enviado correctamente.",
+          order_id: savedOrder.order_id,
+          status: 'MESSAGE_SENT'
+        });
+      } else {
+        const errorDetails = await response.json();
+        console.error("Error en la respuesta de WhatsApp:", errorDetails);
+        
+        // Actualizar el estado del pedido a MESSAGE_FAILED
+        await orderService.updateOrderMessageStatus(
+          savedOrder.order_id, 
+          false, 
+          { error: errorDetails.error?.message || 'Error desconocido' }
+        );
+        
+        return res.status(500).json({
+          message: "Error al enviar el mensaje de WhatsApp.",
+          details: errorDetails,
+          order_id: savedOrder.order_id,
+          status: 'MESSAGE_FAILED'
+        });
+      }
+    } catch (whatsappError) {
+      console.error("Error al enviar mensaje a WhatsApp:", whatsappError);
+      
+      // Actualizar el estado del pedido a MESSAGE_FAILED
+      await orderService.updateOrderMessageStatus(
+        savedOrder.order_id, 
+        false, 
+        { error: whatsappError.message || 'Error de conexión' }
+      );
+      
+      return res.status(500).json({ 
+        error: "Error al enviar el mensaje a WhatsApp.",
+        order_id: savedOrder.order_id,
+        status: 'MESSAGE_FAILED'
       });
     }
   } catch (error) {
