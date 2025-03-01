@@ -1,3 +1,6 @@
+// Importar node-fetch para entornos de Node.js
+const fetch = require('node-fetch');
+
 /**
  * Envía un mensaje de texto simple a través de WhatsApp
  * @param {string} to - Número de teléfono del destinatario
@@ -70,9 +73,6 @@ async function sendTextMessage(to, message, retryCount = 0) {
     throw error;
   }
 }
-
-// Importar node-fetch para entornos de Node.js
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Exportar funciones usando sintaxis CommonJS
 module.exports = {

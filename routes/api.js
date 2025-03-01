@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sendTextMessage } = require('../utils/whatsapp-api');
-const { Pedido, Mensaje } = require('../server');
 
-// Ruta para el webhook de WhatsApp (mantener la funcionalidad existente)
+// Ruta para el webhook de WhatsApp
 router.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -32,7 +31,7 @@ router.post('/webhook', async (req, res) => {
       const from = message.from; // Número del cliente
       
       // Guardar el mensaje recibido
-      await guardarMensaje(from, message);
+      await guardarMensaje(req, from, message);
     }
     
     return res.status(200).json({ status: 'ok' });
@@ -76,18 +75,18 @@ router.post('/button-response', async (req, res) => {
       // Manejar respuesta de botón directa (formato antiguo)
       if (message.type === 'interactive' && message.interactive.type === 'button_reply') {
         const buttonText = message.interactive.button_reply.title;
-        await handleButtonResponse(from, buttonText);
+        await handleButtonResponse(req, from, buttonText);
         
         // Guardar el mensaje recibido
-        await guardarMensaje(from, message);
+        await guardarMensaje(req, from, message);
       }
       // Manejar el nuevo formato de respuesta de botón
       else if (message.type === 'button') {
         const buttonText = message.button.text;
-        await handleButtonResponse(from, buttonText);
+        await handleButtonResponse(req, from, buttonText);
         
         // Guardar el mensaje recibido
-        await guardarMensaje(from, message);
+        await guardarMensaje(req, from, message);
       }
     } 
     // Manejar formato alternativo de respuesta de botón
@@ -103,10 +102,10 @@ router.post('/button-response', async (req, res) => {
         from: from
       };
       
-      await handleButtonResponse(from, buttonText);
+      await handleButtonResponse(req, from, buttonText);
       
       // Guardar el mensaje recibido
-      await guardarMensaje(from, message);
+      await guardarMensaje(req, from, message);
     } else {
       console.log('Formato de mensaje no reconocido o sin mensajes');
     }
@@ -121,8 +120,10 @@ router.post('/button-response', async (req, res) => {
 });
 
 // Función para guardar mensajes en la base de datos
-async function guardarMensaje(from, message) {
+async function guardarMensaje(req, from, message) {
   try {
+    const { Pedido } = req.models;
+    
     // Buscar si ya existe un pedido para este número
     let pedido = await Pedido.findOne({ telefono: from });
     
@@ -174,8 +175,10 @@ async function guardarMensaje(from, message) {
 }
 
 // Función para guardar mensajes enviados
-async function guardarMensajeEnviado(to, message) {
+async function guardarMensajeEnviado(req, to, message) {
   try {
+    const { Pedido } = req.models;
+    
     // Buscar si ya existe un pedido para este número
     let pedido = await Pedido.findOne({ telefono: to });
     
@@ -209,9 +212,11 @@ async function guardarMensajeEnviado(to, message) {
 }
 
 // Función para manejar respuestas de botones y guardar en la base de datos
-async function handleButtonResponse(from, buttonText) {
+async function handleButtonResponse(req, from, buttonText) {
   try {
     console.log(`Procesando respuesta de botón: "${buttonText}" para el número ${from}`);
+    
+    const { Pedido } = req.models;
     
     // Buscar si ya existe un pedido para este número
     let pedido = await Pedido.findOne({ telefono: from });
@@ -244,7 +249,7 @@ async function handleButtonResponse(from, buttonText) {
       await sendTextMessage(from, mensaje);
       
       // Guardar el mensaje enviado
-      await guardarMensajeEnviado(from, mensaje);
+      await guardarMensajeEnviado(req, from, mensaje);
     } 
     else if (buttonText === 'Modificar pedido') {
       console.log('Enviando mensaje de modificación de pedido');
@@ -267,7 +272,7 @@ async function handleButtonResponse(from, buttonText) {
       await sendTextMessage(from, mensaje);
       
       // Guardar el mensaje enviado
-      await guardarMensajeEnviado(from, mensaje);
+      await guardarMensajeEnviado(req, from, mensaje);
     } 
     else if (buttonText === 'Modificar datos de envío') {
       console.log('Enviando mensaje de modificación de datos de envío');
@@ -288,7 +293,7 @@ async function handleButtonResponse(from, buttonText) {
       await sendTextMessage(from, mensaje);
       
       // Guardar el mensaje enviado
-      await guardarMensajeEnviado(from, mensaje);
+      await guardarMensajeEnviado(req, from, mensaje);
     } else {
       console.log(`Botón no reconocido: "${buttonText}"`);
     }
@@ -302,6 +307,7 @@ async function handleButtonResponse(from, buttonText) {
 // API para obtener todos los pedidos (formato JSON)
 router.get('/pedidos', async (req, res) => {
   try {
+    const { Pedido } = req.models;
     const filtro = req.query.estado || '';
     const query = filtro ? { estado: filtro } : {};
     
@@ -316,6 +322,7 @@ router.get('/pedidos', async (req, res) => {
 // API para obtener un pedido específico
 router.get('/pedidos/:id', async (req, res) => {
   try {
+    const { Pedido } = req.models;
     const pedido = await Pedido.findById(req.params.id);
     if (!pedido) {
       return res.status(404).json({ error: 'Pedido no encontrado' });
@@ -330,6 +337,7 @@ router.get('/pedidos/:id', async (req, res) => {
 // API para actualizar un pedido
 router.put('/pedidos/:id', async (req, res) => {
   try {
+    const { Pedido } = req.models;
     const { estado, nombre, productos, direccion, notas } = req.body;
     
     const updateData = {

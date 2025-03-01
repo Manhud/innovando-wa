@@ -8,7 +8,7 @@ const ejsLayouts = require('express-ejs-layouts');
 
 // Inicializar la aplicación Express
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Configuración de middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -77,12 +77,21 @@ pedidoSchema.pre('save', function(next) {
 const Pedido = mongoose.model('Pedido', pedidoSchema);
 const Mensaje = mongoose.model('Mensaje', mensajeSchema);
 
+// Crear un objeto para exportar los modelos
+const models = {
+  Pedido,
+  Mensaje
+};
+
 // Exportar los modelos para usarlos en otros archivos
-module.exports.Pedido = Pedido;
-module.exports.Mensaje = Mensaje;
+app.locals.models = models;
 
 // Rutas para la API de WhatsApp
-app.use('/api', require('./routes/api'));
+const apiRoutes = require('./routes/api');
+app.use('/api', (req, res, next) => {
+  req.models = models;
+  next();
+}, apiRoutes);
 
 // Rutas para la interfaz web
 app.get('/', async (req, res) => {
@@ -181,7 +190,12 @@ app.post('/nuevo-pedido', async (req, res) => {
   }
 });
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-}); 
+// Si estamos en desarrollo, iniciamos el servidor
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
+}
+
+// Exportar la aplicación para Vercel
+module.exports = app; 
