@@ -115,6 +115,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-danger" id="deleteOrderBtn">Eliminar Pedido</button>
                     </div>
                 </div>
             </div>
@@ -131,9 +132,12 @@
         const sentOrdersElement = document.getElementById('sentOrders');
         const failedOrdersElement = document.getElementById('failedOrders');
         const orderDetailsContent = document.getElementById('orderDetailsContent');
+        const deleteOrderBtn = document.getElementById('deleteOrderBtn');
         
         // Modal de Bootstrap
         let orderDetailsModal;
+        // ID del pedido actual
+        let currentOrderId = null;
         
         document.addEventListener('DOMContentLoaded', function() {
             // Inicializar el modal
@@ -144,6 +148,9 @@
             
             // Configurar el botón de actualizar
             refreshBtn.addEventListener('click', loadOrders);
+            
+            // Configurar el botón de eliminar
+            deleteOrderBtn.addEventListener('click', confirmDeleteOrder);
         });
         
         // Función para cargar los pedidos desde la API
@@ -294,6 +301,9 @@
         // Función para mostrar los detalles de un pedido
         async function showOrderDetails(orderId) {
             try {
+                // Guardar el ID del pedido actual
+                currentOrderId = orderId;
+                
                 // Intentar primero con la nueva ruta, y si falla, usar la ruta antigua
                 let response;
                 try {
@@ -444,6 +454,57 @@
             } catch (error) {
                 console.error('Error al cargar los detalles del pedido:', error);
                 alert(`Error al cargar los detalles del pedido: ${error.message}`);
+            }
+        }
+        
+        // Función para confirmar la eliminación de un pedido
+        function confirmDeleteOrder() {
+            if (!currentOrderId) {
+                alert('No hay un pedido seleccionado para eliminar.');
+                return;
+            }
+            
+            const confirmation = confirm(`¿Está seguro de que desea eliminar el pedido ${currentOrderId}? Esta acción no se puede deshacer.`);
+            
+            if (confirmation) {
+                deleteOrder(currentOrderId);
+            }
+        }
+        
+        // Función para eliminar un pedido
+        async function deleteOrder(orderId) {
+            try {
+                // Mostrar indicador de carga
+                deleteOrderBtn.disabled = true;
+                deleteOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Eliminando...';
+                
+                // Realizar la solicitud DELETE
+                const response = await fetch(`/api/delete-order?orderId=${orderId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Error al eliminar el pedido: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Cerrar el modal
+                orderDetailsModal.hide();
+                
+                // Mostrar mensaje de éxito
+                alert(`Pedido eliminado correctamente: ${result.message}`);
+                
+                // Recargar la lista de pedidos
+                loadOrders();
+            } catch (error) {
+                console.error('Error al eliminar el pedido:', error);
+                alert(`Error al eliminar el pedido: ${error.message}`);
+            } finally {
+                // Restaurar el botón
+                deleteOrderBtn.disabled = false;
+                deleteOrderBtn.innerHTML = 'Eliminar Pedido';
             }
         }
     </script>

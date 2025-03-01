@@ -127,6 +127,13 @@ module.exports = async (req, res) => {
  */
 async function handleButtonResponse(from, buttonId, buttonText) {
   try {
+    // Validar que el número de teléfono no sea nulo o vacío
+    if (!from) {
+      console.error('Error: El número de teléfono es nulo o vacío');
+      console.error('Detalles del botón:', { buttonId, buttonText });
+      return; // No podemos continuar sin un número de teléfono
+    }
+    
     console.log(`Procesando respuesta de botón: ID="${buttonId}", Texto="${buttonText}" para el número ${from}`);
     
     // Conectar a la base de datos para actualizar el estado del pedido si es necesario
@@ -184,14 +191,23 @@ async function handleButtonResponse(from, buttonId, buttonText) {
     
     // Enviar mensaje de respuesta
     console.log(`Enviando respuesta a ${from}: ${responseMessage}`);
-    await sendTextMessage(from, responseMessage);
-    console.log('Respuesta enviada correctamente');
+    try {
+      await sendTextMessage(from, responseMessage);
+      console.log('Respuesta enviada correctamente');
+    } catch (msgError) {
+      console.error('Error al enviar mensaje de respuesta:', msgError);
+      // Continuamos con la actualización del estado aunque falle el envío del mensaje
+    }
     
     // Si tenemos un estado nuevo y el sistema está conectado a la base de datos,
     // intentamos actualizar el pedido asociado al número de teléfono
     if (newStatus) {
       try {
         console.log(`Intentando actualizar el estado del pedido a: ${newStatus}`);
+        
+        // Normalizar el número de teléfono para la búsqueda
+        const normalizedPhone = from.toString().replace(/\D/g, '');
+        console.log(`Número de teléfono normalizado para búsqueda: ${normalizedPhone}`);
         
         // Buscar pedidos asociados al número de teléfono
         console.log(`Buscando pedidos para el número: ${from}`);
@@ -227,13 +243,16 @@ async function handleButtonResponse(from, buttonId, buttonText) {
           // Intentar con diferentes formatos del número
           const phoneFormats = [
             from,
-            from.replace(/\D/g, ''),
-            from.startsWith('57') ? from.substring(2) : `57${from.replace(/\D/g, '')}`
+            normalizedPhone,
+            normalizedPhone.startsWith('57') ? normalizedPhone.substring(2) : `57${normalizedPhone}`,
+            `+${normalizedPhone.startsWith('57') ? normalizedPhone : `57${normalizedPhone}`}`,
+            normalizedPhone.length >= 10 ? normalizedPhone.slice(-10) : normalizedPhone
           ];
           
           console.log(`Intentando con formatos alternativos: ${phoneFormats.join(', ')}`);
           
           // Intentar buscar con cada formato
+          let orderFound = false;
           for (const phoneFormat of phoneFormats) {
             if (phoneFormat === from) continue; // Ya lo intentamos
             
@@ -256,7 +275,19 @@ async function handleButtonResponse(from, buttonId, buttonText) {
               });
               
               console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${updatedOrder.status}`);
+              orderFound = true;
               break;
+            }
+          }
+          
+          if (!orderFound) {
+            console.error(`No se pudo encontrar ningún pedido para el número ${from} en ningún formato`);
+            console.log('Mostrando pedidos recientes para depuración:');
+            const recentOrders = await orderService.getAllOrders({ limit: 5 });
+            if (recentOrders.length > 0) {
+              recentOrders.forEach((order, index) => {
+                console.log(`${index + 1}. ID: ${order.order_id}, Teléfono: "${order.customer.phone}", Estado: ${order.status}`);
+              });
             }
           }
         }
@@ -269,6 +300,7 @@ async function handleButtonResponse(from, buttonId, buttonText) {
     console.log('Respuesta de botón procesada exitosamente');
   } catch (error) {
     console.error(`Error al manejar la respuesta del botón "${buttonText}":`, error);
+    console.error('Stack trace:', error.stack);
     // No propagamos el error para evitar que falle todo el webhook
   }
 }
