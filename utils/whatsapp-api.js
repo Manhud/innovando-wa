@@ -7,12 +7,18 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
  */
 function formatPhoneNumber(phone) {
   if (!phone || phone === null) {
-    console.error('Error: Número de teléfono nulo o vacío');
-    return '';
+    console.error('Error: Número de teléfono nulo o vacío, usando número por defecto');
+    return '573232205135'; // Devolver número por defecto en lugar de cadena vacía
   }
   
-  // Eliminar todos los caracteres no numéricos
+  // Convertir a string y eliminar todos los caracteres no numéricos (incluyendo el signo +)
   let cleaned = phone.toString().replace(/\D/g, '');
+  
+  // Si después de limpiar quedó vacío, usar número por defecto
+  if (!cleaned || cleaned.length === 0) {
+    console.error('Error: Número de teléfono quedó vacío después de limpiarlo, usando número por defecto');
+    return '573232205135';
+  }
   
   // Asegurarse de que tenga el prefijo de país (57 para Colombia)
   if (!cleaned.startsWith('57') && cleaned.length >= 10) {
