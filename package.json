@@ -9,7 +9,10 @@
     "init-db": "node database/init.js",
     "test-db": "node database/test-connection.js",
     "test-order": "node test/send-test-order.js",
-    "test-buttons": "node test/test-buttons.js"
+    "test-buttons": "node test/test-buttons.js",
+    "test-status": "node test/test-order-status.js",
+    "test-find-phone": "node test/test-find-by-phone.js",
+    "test-update-status": "node test/test-update-status.js"
   },
   "keywords": [],
   "author": "",

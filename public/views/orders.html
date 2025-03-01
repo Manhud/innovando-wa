@@ -27,6 +27,26 @@
             background-color: #f8d7da;
             color: #842029;
         }
+        .status-confirmado {
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 2px solid #0f5132;
+        }
+        .status-cancelado {
+            background-color: #f8d7da;
+            color: #842029;
+            border: 2px solid #842029;
+        }
+        .status-modificacion {
+            background-color: #fff3cd;
+            color: #664d03;
+            border: 2px solid #664d03;
+        }
+        .status-cambio-direccion {
+            background-color: #e2e3e5;
+            color: #41464b;
+            border: 2px solid #41464b;
+        }
         .order-details {
             cursor: pointer;
         }
@@ -55,6 +75,8 @@
                 <span class="badge bg-info text-dark me-2">Total: <span id="totalOrders">0</span></span>
                 <span class="badge bg-success">Enviados: <span id="sentOrders">0</span></span>
                 <span class="badge bg-danger ms-2">Fallidos: <span id="failedOrders">0</span></span>
+                <span class="badge bg-success ms-2">Confirmados: <span id="confirmedOrders">0</span></span>
+                <span class="badge bg-danger ms-2">Cancelados: <span id="canceledOrders">0</span></span>
             </div>
         </div>
 
@@ -206,6 +228,22 @@
                         statusClass = 'status-failed';
                         statusText = 'Fallido';
                         break;
+                    case 'CONFIRMADO':
+                        statusClass = 'status-confirmado';
+                        statusText = 'Confirmado';
+                        break;
+                    case 'CANCELADO':
+                        statusClass = 'status-cancelado';
+                        statusText = 'Cancelado';
+                        break;
+                    case 'MODIFICACION_SOLICITADA':
+                        statusClass = 'status-modificacion';
+                        statusText = 'Modificación Solicitada';
+                        break;
+                    case 'CAMBIO_DIRECCION_SOLICITADO':
+                        statusClass = 'status-cambio-direccion';
+                        statusText = 'Cambio de Dirección';
+                        break;
                     default:
                         statusClass = '';
                         statusText = order.status || 'Desconocido';
@@ -241,10 +279,16 @@
             const total = orders.length;
             const sent = orders.filter(order => order.status === 'MESSAGE_SENT').length;
             const failed = orders.filter(order => order.status === 'MESSAGE_FAILED').length;
+            const confirmed = orders.filter(order => order.status === 'CONFIRMADO').length;
+            const canceled = orders.filter(order => order.status === 'CANCELADO').length;
             
             totalOrdersElement.textContent = total;
             sentOrdersElement.textContent = sent;
             failedOrdersElement.textContent = failed;
+            
+            // Actualizar los contadores en la interfaz
+            document.getElementById('confirmedOrders').textContent = confirmed;
+            document.getElementById('canceledOrders').textContent = canceled;
         }
         
         // Función para mostrar los detalles de un pedido
@@ -306,6 +350,22 @@
                     case 'MESSAGE_FAILED':
                         statusClass = 'bg-danger';
                         statusText = 'Mensaje Fallido';
+                        break;
+                    case 'CONFIRMADO':
+                        statusClass = 'bg-success';
+                        statusText = 'Confirmado';
+                        break;
+                    case 'CANCELADO':
+                        statusClass = 'bg-danger';
+                        statusText = 'Cancelado';
+                        break;
+                    case 'MODIFICACION_SOLICITADA':
+                        statusClass = 'bg-warning text-dark';
+                        statusText = 'Modificación Solicitada';
+                        break;
+                    case 'CAMBIO_DIRECCION_SOLICITADO':
+                        statusClass = 'bg-secondary';
+                        statusText = 'Cambio de Dirección';
                         break;
                     default:
                         statusClass = 'bg-secondary';

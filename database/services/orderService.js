@@ -71,6 +71,76 @@ const orderService = {
   },
   
   /**
+   * Actualiza el estado de un pedido
+   * @param {string} orderId - ID del pedido
+   * @param {string} newStatus - Nuevo estado del pedido
+   * @param {Object} additionalData - Datos adicionales para actualizar
+   * @returns {Promise<Object>} Pedido actualizado
+   */
+  async updateOrderStatus(orderId, newStatus, additionalData = {}) {
+    try {
+      // Buscar el pedido por ID
+      const order = await Order.findOne({ order_id: orderId });
+      
+      if (!order) {
+        throw new Error(`Pedido con ID ${orderId} no encontrado`);
+      }
+      
+      // Actualizar el estado
+      order.status = newStatus;
+      
+      // Actualizar datos adicionales si se proporcionan
+      for (const [key, value] of Object.entries(additionalData)) {
+        order[key] = value;
+      }
+      
+      // Guardar los cambios
+      await order.save();
+      
+      console.log(`Estado del pedido ${orderId} actualizado a: ${newStatus}`);
+      return order;
+    } catch (error) {
+      console.error(`Error al actualizar el estado del pedido ${orderId}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Busca pedidos por número de teléfono del cliente
+   * @param {string} phone - Número de teléfono del cliente
+   * @param {Object} options - Opciones adicionales (limit, sort, etc.)
+   * @returns {Promise<Array>} Lista de pedidos encontrados
+   */
+  async getOrdersByPhone(phone, options = {}) {
+    try {
+      // Eliminar caracteres no numéricos del teléfono para la búsqueda
+      const cleanPhone = phone.replace(/\D/g, '');
+      
+      // Crear un patrón de búsqueda que sea flexible con el formato del teléfono
+      const phonePattern = new RegExp(cleanPhone.slice(-10)); // Últimos 10 dígitos
+      
+      // Buscar pedidos donde el teléfono del cliente coincida con el patrón
+      const query = {
+        'customer.phone': { $regex: phonePattern }
+      };
+      
+      // Aplicar opciones adicionales
+      const limit = options.limit || 10;
+      const sort = options.sort || { created_at: -1 }; // Por defecto, ordenar por fecha de creación descendente
+      
+      const orders = await Order.find(query)
+        .sort(sort)
+        .limit(limit);
+      
+      console.log(`Se encontraron ${orders.length} pedidos para el teléfono ${phone}`);
+      return orders;
+    } catch (error) {
+      console.error(`Error al buscar pedidos por teléfono ${phone}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
    * Obtiene un pedido por su ID
    * @param {string} orderId - ID del pedido
    * @returns {Promise<Object>} Pedido encontrado

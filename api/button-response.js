@@ -146,7 +146,7 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         "Tu pedido ha sido registrado y será procesado inmediatamente.\n" +
         "Te mantendremos informado sobre el estado de tu envío. 📦\n\n" +
         "*¡Gracias por confiar en INNOVANDO!* 😊";
-      newStatus = "CONFIRMED";
+      newStatus = "CONFIRMADO";
     } 
     else if (buttonId === 'change' || buttonText === 'Modificar' || buttonText === 'Modificar pedido') {
       responseMessage = "Entendido, vamos a modificar tu pedido. 📝\n\n" +
@@ -156,7 +156,7 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         "- Otro\n\n" +
         "Un asesor te atenderá en breve. 👨‍💼\n\n" +
         "*¡Gracias por confiar en INNOVANDO!* 😊";
-      newStatus = "CHANGE_REQUESTED";
+      newStatus = "MODIFICACION_SOLICITADA";
     } 
     else if (buttonText === 'Modificar datos de envío') {
       responseMessage = "Vamos a actualizar tus datos de envío. 🏠\n\n" +
@@ -167,18 +167,18 @@ async function handleButtonResponse(from, buttonId, buttonText) {
         "4. Teléfono de contacto\n\n" +
         "Un asesor procesará los cambios pronto. ✅\n\n" +
         "*¡Gracias por confiar en INNOVANDO!* 😊";
-      newStatus = "ADDRESS_CHANGE_REQUESTED";
+      newStatus = "CAMBIO_DIRECCION_SOLICITADO";
     }
     else if (buttonId === 'cancel' || buttonText === 'Cancelar' || buttonText === 'Cancelar pedido') {
       responseMessage = "Lamentamos que hayas cancelado tu pedido. 😔\n\n" +
         "Si deseas realizar un nuevo pedido o tienes alguna pregunta, no dudes en contactarnos.\n\n" +
         "*¡Gracias por confiar en INNOVANDO!* 😊";
-      newStatus = "CANCELLED";
+      newStatus = "CANCELADO";
     } 
     else {
       responseMessage = "Hemos recibido tu respuesta. Gracias por contactarnos.\n\n" +
         "*¡Gracias por confiar en INNOVANDO!* 😊";
-      newStatus = "RESPONSE_RECEIVED";
+      newStatus = "RESPUESTA_RECIBIDA";
       console.log(`Botón no reconocido específicamente: "${buttonText}" (ID: ${buttonId})`);
     }
     
@@ -191,10 +191,26 @@ async function handleButtonResponse(from, buttonId, buttonText) {
     // intentamos actualizar el pedido asociado al número de teléfono
     if (newStatus) {
       try {
-        // Aquí podríamos buscar el pedido más reciente asociado al número de teléfono
-        // y actualizar su estado, pero necesitaríamos una función en orderService
-        // Por ahora, lo dejamos como un TODO
-        console.log(`Estado a actualizar: ${newStatus} (pendiente de implementar búsqueda por teléfono)`);
+        // Buscar pedidos asociados al número de teléfono
+        const orders = await orderService.getOrdersByPhone(from, { limit: 1 });
+        
+        if (orders && orders.length > 0) {
+          const latestOrder = orders[0]; // Obtener el pedido más reciente
+          
+          // Actualizar el estado del pedido
+          await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
+            updated_at: new Date(),
+            response_details: {
+              button_id: buttonId,
+              button_text: buttonText,
+              response_time: new Date()
+            }
+          });
+          
+          console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${newStatus}`);
+        } else {
+          console.log(`No se encontraron pedidos asociados al número ${from}`);
+        }
       } catch (updateError) {
         console.error('Error al actualizar el estado del pedido:', updateError);
       }
