@@ -86,6 +86,14 @@ module.exports = async (req, res) => {
           
           await handleButtonResponse(from, buttonText, buttonText, message.timestamp);
         }
+        // Manejar mensajes de texto
+        else if (message.type === 'text' && message.text) {
+          const textMessage = message.text.body;
+          console.log(`Mensaje de texto recibido: "${textMessage}"`);
+          
+          // Guardar el mensaje de texto en la base de datos
+          await handleTextMessage(from, textMessage, message.timestamp);
+        }
         // Otros tipos de mensajes
         else {
           console.log(`Tipo de mensaje no procesable: ${message.type}`);
@@ -350,6 +358,86 @@ async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
     console.error(`Error al manejar la respuesta del botón "${buttonText}":`, error);
     console.error('Stack trace:', error.stack);
     // No propagamos el error para evitar que falle todo el webhook
+  }
+}
+
+/**
+ * Maneja los mensajes de texto y los guarda en la base de datos
+ * @param {string} from - Número de teléfono del remitente
+ * @param {string} textMessage - Contenido del mensaje de texto
+ * @param {number} timestamp - Timestamp del mensaje (opcional)
+ */
+async function handleTextMessage(from, textMessage, timestamp) {
+  try {
+    // Validar que el número de teléfono no sea nulo o vacío
+    if (!from) {
+      console.error('Error: El número de teléfono es nulo o vacío');
+      return; // No podemos continuar sin un número de teléfono
+    }
+    
+    console.log(`Procesando mensaje de texto: "${textMessage}" del número ${from}`);
+    
+    // Conectar a la base de datos
+    try {
+      await connectToDatabase();
+    } catch (dbError) {
+      console.error('Error al conectar con la base de datos:', dbError);
+      return; // No podemos continuar sin conexión a la BD
+    }
+    
+    // Buscar pedidos asociados al número de teléfono
+    console.log(`Buscando pedidos para el número: ${from}`);
+    const orders = await orderService.getOrdersByPhone(from, { limit: 1 });
+    
+    let orderId = 'SIN_PEDIDO';
+    
+    if (orders && orders.length > 0) {
+      const latestOrder = orders[0]; // Obtener el pedido más reciente
+      orderId = latestOrder.order_id;
+      
+      console.log(`Pedido encontrado para asociar el mensaje: ${latestOrder.order_id}`);
+      
+      // Actualizar el estado del pedido a RESPUESTA_RECIBIDA
+      await orderService.updateOrderStatus(latestOrder.order_id, "RESPUESTA_RECIBIDA", {
+        updated_at: new Date()
+      });
+      
+      console.log(`Pedido ${latestOrder.order_id} actualizado a estado: RESPUESTA_RECIBIDA`);
+    } else {
+      console.log(`No se encontraron pedidos asociados al número ${from}`);
+    }
+    
+    // Guardar el mensaje en la base de datos
+    await chatService.saveMessage({
+      order_id: orderId,
+      sender: 'CUSTOMER',
+      message: textMessage,
+      phone: from,
+      message_type: 'TEXT',
+      created_at: timestamp ? new Date(timestamp * 1000) : new Date()
+    });
+    
+    console.log(`Mensaje de texto guardado correctamente para el número ${from}`);
+    
+    // Si no hay pedido asociado, enviar un mensaje genérico
+    if (orderId === 'SIN_PEDIDO') {
+      const responseMessage = "Gracias por tu mensaje. Un asesor te atenderá pronto.\n\n" +
+        "*¡Gracias por confiar en INNOVANDO!* 😊";
+      
+      await sendTextMessage(from, responseMessage);
+      
+      // Guardar la respuesta del sistema
+      await chatService.saveMessage({
+        order_id: orderId,
+        sender: 'SYSTEM',
+        message: responseMessage,
+        phone: from,
+        message_type: 'TEXT',
+        created_at: new Date()
+      });
+    }
+  } catch (error) {
+    console.error('Error al procesar mensaje de texto:', error);
   }
 }
 
