@@ -215,10 +215,12 @@ async function sendTemplateMessage(to, templateName, languageCode = 'es', parame
       throw new Error('Número de teléfono inválido');
     }
     
-    console.log(`Enviando mensaje de plantilla a ${formattedPhone}`);
+    console.log(`Enviando mensaje de plantilla "${templateName}" a ${formattedPhone} en idioma ${languageCode}`);
+    console.log(`Parámetros recibidos:`, JSON.stringify(parameters, null, 2));
     
     const url = `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`;
     
+    // Construir el cuerpo de la solicitud
     const body = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -233,15 +235,39 @@ async function sendTemplateMessage(to, templateName, languageCode = 'es', parame
     
     // Añadir parámetros si se proporcionan
     if (parameters && parameters.length > 0) {
+      // Asegurarse de que los parámetros tengan el formato correcto para la API de WhatsApp
+      // IMPORTANTE: Los parámetros deben estar en el mismo orden que aparecen en la plantilla
+      const formattedParameters = parameters.map(param => {
+        // Asegurarse de que cada parámetro tenga el formato correcto
+        // La API de WhatsApp espera objetos con { type: "text", text: "valor" }
+        if (param.type && (param.text !== undefined || param.image !== undefined || param.document !== undefined || param.video !== undefined)) {
+          // Si ya tiene el formato correcto, devolverlo tal cual
+          return param;
+        } else if (typeof param === 'object' && param !== null) {
+          // Si es un objeto, extraer el valor de text o value
+          return {
+            type: "text",
+            text: String(param.text || param.value || '')
+          };
+        } else {
+          // Si es un valor primitivo, convertirlo a texto
+          return {
+            type: "text",
+            text: String(param || '')
+          };
+        }
+      });
+      
+      // Añadir los parámetros al componente body de la plantilla
       body.template.components = [
         {
           type: "body",
-          parameters: parameters
+          parameters: formattedParameters
         }
       ];
     }
     
-    console.log(`Cuerpo de la solicitud de plantilla: ${JSON.stringify(body)}`);
+    console.log(`Cuerpo de la solicitud de plantilla: ${JSON.stringify(body, null, 2)}`);
     
     const response = await fetch(
       url,
@@ -260,6 +286,51 @@ async function sendTemplateMessage(to, templateName, languageCode = 'es', parame
     
     if (!response.ok) {
       console.error('Error al enviar mensaje de plantilla:', responseData);
+      
+      // Información de depuración adicional
+      if (responseData.error) {
+        if (responseData.error.code === 132001) {
+          console.error(`
+          ============ ERROR DE PLANTILLA ============
+          La plantilla "${templateName}" no existe en el idioma "${languageCode}".
+          
+          Posibles causas:
+          1. El nombre de la plantilla no coincide exactamente (verifica mayúsculas/minúsculas y guiones)
+          2. La plantilla no está aprobada para el idioma especificado
+          3. La plantilla no existe en tu cuenta de WhatsApp Business
+          
+          Verifica el nombre exacto en Meta Business Manager:
+          https://business.facebook.com/wa/manage/message-templates/
+          ============================================
+          `);
+        } else if (responseData.error.code === 132007) {
+          console.error(`
+          ============ ERROR DE PARÁMETROS DE PLANTILLA ============
+          Los parámetros enviados no coinciden con los esperados por la plantilla "${templateName}".
+          
+          Parámetros enviados: ${JSON.stringify(parameters, null, 2)}
+          
+          Asegúrate de que:
+          1. El número de parámetros coincida con los de la plantilla
+          2. Los parámetros estén en el mismo orden que en la plantilla
+          3. Los tipos de parámetros sean correctos (texto, imagen, etc.)
+          
+          Verifica la configuración de la plantilla en Meta Business Manager:
+          https://business.facebook.com/wa/manage/message-templates/
+          ============================================
+          `);
+        } else if (responseData.error.code === 132000) {
+          console.error(`
+          ============ ERROR DE PLANTILLA NO APROBADA ============
+          La plantilla "${templateName}" no está aprobada para su uso.
+          
+          Verifica el estado de la plantilla en Meta Business Manager:
+          https://business.facebook.com/wa/manage/message-templates/
+          ============================================
+          `);
+        }
+      }
+      
       throw new Error(`HTTP error! status: ${response.status}, message: ${JSON.stringify(responseData)}`);
     }
 

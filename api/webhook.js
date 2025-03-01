@@ -210,32 +210,69 @@ module.exports = async (req, res) => {
         const city = order.shipping_address?.city || "Ciudad desconocida";
         const address = order.shipping_address?.address1 || "Dirección desconocida";
 
-        // Siempre usar la plantilla validate_order para órdenes de Shopify
-        const parameters = [
-           { type: "text", text: customerName, parameter_name: "nombre" },
-              { type: "text", text: pedido, parameter_name: "pedido" },
-              { type: "text", text: totalAmount, parameter_name: "total" },
-              { type: "text", text: city, parameter_name: "ciudad" },
-              { type: "text", text: address, parameter_name: "direccion" }
-        ];
+        // Obtener el nombre de la plantilla desde variables de entorno o usar el valor por defecto
+        // IMPORTANTE: Asegúrate de que este nombre coincida EXACTAMENTE con el nombre en Meta Business
+        const templateName = process.env.TEMPLATE_NAME || "validate_order";
+        const languageCode = process.env.TEMPLATE_LANGUAGE || "es";
         
-        const response = await sendTemplateMessage(formattedPhone, "validate_order", "es", parameters);
-        console.log('Respuesta de plantilla:', response);
-        
-        // Actualizar el estado del pedido a MESSAGE_SENT
-        await orderService.updateOrderMessageStatus(
-          savedOrder.order_id, 
-          true, 
-          { id: response.messages?.[0]?.id }
-        );
-        
-        // Guardar el mensaje enviado en el chat
-        await chatService.saveSystemMessage(
-          savedOrder.order_id,
-          formattedPhone,
-          `Mensaje de plantilla enviado: validate_order`,
-          'TEMPLATE'
-        );
+        console.log(`Intentando enviar plantilla: ${templateName} en idioma: ${languageCode}`);
+        console.log(`Datos para la plantilla:
+          - Nombre: ${customerName}
+          - Pedido: ${pedido}
+          - Total: ${totalAmount}
+          - Ciudad: ${city}
+          - Dirección: ${address}
+        `);
+
+        try {
+          // Preparar los parámetros para la plantilla
+          // IMPORTANTE: Los parámetros deben estar en el MISMO ORDEN que en la plantilla
+          // Para la plantilla validate_order, el orden es:
+          // 1. {{nombre}} - Nombre del cliente
+          // 2. {{pedido}} - Descripción del pedido
+          // 3. {{total}} - Monto total
+          // 4. {{ciudad}} - Ciudad de entrega
+          // 5. {{direccion}} - Dirección de entrega
+          const parameters = [
+            { type: "text", text: customerName },  // {{nombre}}
+            { type: "text", text: pedido },        // {{pedido}}
+            { type: "text", text: totalAmount },   // {{total}}
+            { type: "text", text: city },          // {{ciudad}}
+            { type: "text", text: address }        // {{direccion}}
+          ];
+          
+          // Enviar mensaje usando la plantilla
+          const response = await sendTemplateMessage(formattedPhone, templateName, languageCode, parameters);
+          console.log('Respuesta de plantilla:', response);
+          
+          // Actualizar el estado del pedido a MESSAGE_SENT
+          await orderService.updateOrderMessageStatus(
+            savedOrder.order_id, 
+            true, 
+            { id: response.messages?.[0]?.id }
+          );
+          
+          // Guardar el mensaje enviado en el chat
+          await chatService.saveSystemMessage(
+            savedOrder.order_id,
+            formattedPhone,
+            `Mensaje de plantilla enviado: ${templateName}`,
+            'TEMPLATE'
+          );
+          
+          console.log(`Plantilla ${templateName} enviada correctamente`);
+        } catch (templateError) {
+          console.error(`Error al enviar plantilla ${templateName}:`, templateError);
+          
+          // Registrar el error detallado para diagnóstico
+          if (templateError.message && templateError.message.includes('Template name does not exist')) {
+            console.error('ERROR DE PLANTILLA: La plantilla no existe o no está aprobada en el idioma especificado');
+            console.error('Verifica el nombre exacto de la plantilla en Meta Business Manager');
+          }
+          
+          // Reenviar el error para que se maneje en el catch externo
+          throw templateError;
+        }
         
         return res.status(200).json({ 
           message: "Mensaje enviado correctamente.",
