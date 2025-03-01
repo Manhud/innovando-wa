@@ -113,6 +113,10 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  has_unread_messages: {
+    type: Boolean,
+    default: false
+  },
   created_at: {
     type: Date,
     default: Date.now

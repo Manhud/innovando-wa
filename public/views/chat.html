@@ -146,13 +146,13 @@
         
         <div class="message-input">
             <div class="input-group">
-                <input type="text" id="messageInput" class="form-control" placeholder="Escribe un mensaje..." disabled>
-                <button id="sendMessageBtn" class="btn btn-primary" disabled>
+                <input type="text" id="messageInput" class="form-control" placeholder="Escribe un mensaje...">
+                <button id="sendMessageBtn" class="btn btn-primary">
                     <i class="bi bi-send"></i> Enviar
                 </button>
             </div>
             <div class="form-text text-muted">
-                Esta función de envío de mensajes estará disponible próximamente.
+                Escribe un mensaje para responder al cliente.
             </div>
         </div>
         
@@ -200,12 +200,15 @@
             }
         });
         
-        // Evento para enviar mensaje (deshabilitado por ahora)
+        // Evento para enviar mensaje
         sendMessageBtn.addEventListener('click', () => {
-            const message = messageInput.value.trim();
-            if (message) {
-                alert('La función de envío de mensajes estará disponible próximamente');
-                messageInput.value = '';
+            sendMessage();
+        });
+        
+        // Evento para enviar mensaje al presionar Enter
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
             }
         });
         
@@ -455,6 +458,64 @@
             // Agregar un mensaje en la consola para verificar que se cargó la versión correcta
             console.log('Chat.html cargado correctamente - Versión actualizada');
         });
+        
+        // Función para enviar un mensaje
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) {
+                return;
+            }
+            
+            if (!currentOrderId || !currentPhone) {
+                alert('Debes seleccionar un pedido o un número de teléfono primero');
+                return;
+            }
+            
+            try {
+                // Deshabilitar el botón y mostrar indicador de carga
+                sendMessageBtn.disabled = true;
+                sendMessageBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Enviando...';
+                
+                // Enviar el mensaje al servidor
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        orderId: currentOrderId,
+                        phone: currentPhone,
+                        message: message
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Error al enviar el mensaje: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Limpiar el campo de entrada
+                messageInput.value = '';
+                
+                // Recargar el chat para mostrar el mensaje enviado
+                if (currentOrderId) {
+                    loadChatByOrderId(currentOrderId);
+                } else if (currentPhone) {
+                    loadChatByPhone(currentPhone);
+                }
+                
+                console.log('Mensaje enviado correctamente:', result);
+            } catch (error) {
+                console.error('Error al enviar el mensaje:', error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                // Restaurar el botón
+                sendMessageBtn.disabled = false;
+                sendMessageBtn.innerHTML = '<i class="bi bi-send"></i> Enviar';
+            }
+        }
     </script>
 </body>
 </html> 

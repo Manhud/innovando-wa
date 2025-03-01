@@ -106,6 +106,66 @@ const orderService = {
   },
   
   /**
+   * Actualiza el estado de mensajes no leídos de un pedido
+   * @param {string} orderId - ID del pedido
+   * @param {boolean} hasUnreadMessages - Indica si el pedido tiene mensajes no leídos
+   * @returns {Promise<Object>} Pedido actualizado
+   */
+  async updateUnreadMessagesStatus(orderId, hasUnreadMessages) {
+    try {
+      // Buscar el pedido por ID
+      const order = await Order.findOne({ order_id: orderId });
+      
+      if (!order) {
+        throw new Error(`Pedido con ID ${orderId} no encontrado`);
+      }
+      
+      // Actualizar el estado de mensajes no leídos
+      order.has_unread_messages = hasUnreadMessages;
+      
+      // Guardar los cambios
+      await order.save();
+      
+      console.log(`Estado de mensajes no leídos del pedido ${orderId} actualizado a: ${hasUnreadMessages}`);
+      return order;
+    } catch (error) {
+      console.error(`Error al actualizar el estado de mensajes no leídos del pedido ${orderId}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Actualiza parcialmente un pedido
+   * @param {string} orderId - ID del pedido
+   * @param {Object} updateData - Datos a actualizar
+   * @returns {Promise<Object>} Pedido actualizado
+   */
+  async updateOrder(orderId, updateData) {
+    try {
+      // Buscar el pedido por ID
+      const order = await Order.findOne({ order_id: orderId });
+      
+      if (!order) {
+        throw new Error(`Pedido con ID ${orderId} no encontrado`);
+      }
+      
+      // Actualizar los campos proporcionados
+      for (const [key, value] of Object.entries(updateData)) {
+        order[key] = value;
+      }
+      
+      // Guardar los cambios
+      await order.save();
+      
+      console.log(`Pedido ${orderId} actualizado correctamente`);
+      return order;
+    } catch (error) {
+      console.error(`Error al actualizar el pedido ${orderId}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
    * Obtiene los pedidos asociados a un número de teléfono
    * @param {string} phone - Número de teléfono
    * @param {Object} options - Opciones adicionales (limit, sort)

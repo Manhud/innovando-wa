@@ -22,6 +22,16 @@
       "dest": "/api/button-response.js"
     },
     {
+      "src": "/api/send-message",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/send-message.js"
+    },
+    {
+      "src": "/api/mark-messages-read",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/mark-messages-read.js"
+    },
+    {
       "src": "/api/get-orders",
       "methods": ["GET", "OPTIONS"],
       "dest": "/api/get-orders.js"
