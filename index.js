@@ -59,7 +59,7 @@ app.get('/', (req, res) => {
   res.status(200).send('Servidor funcionando correctamente. <a href="/orders">Ver pedidos</a>');
 });
 
-// Conectar a la base de datos al iniciar
+// Conectar a la base de datos
 connectToDatabase().catch(err => {
   console.error('Error al conectar a la base de datos:', err);
 });
@@ -73,4 +73,17 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Exportar la aplicación para Vercel
-module.exports = app; 
+module.exports = app;
+
+// Exportar una función de handler para Vercel
+module.exports.handler = async (req, res) => {
+  // Asegurarse de que la base de datos esté conectada
+  try {
+    await connectToDatabase();
+  } catch (error) {
+    console.error('Error al conectar a la base de datos:', error);
+  }
+  
+  // Manejar la solicitud con Express
+  return app(req, res);
+}; 
