@@ -12,6 +12,14 @@
   ],
   "routes": [
     {
+      "src": "/api/get-orders",
+      "dest": "/api/get-orders.js"
+    },
+    {
+      "src": "/api/get-order",
+      "dest": "/api/get-order.js"
+    },
+    {
       "src": "/api/orders",
       "dest": "/api/get-orders.js"
     },
@@ -32,12 +40,12 @@
       "dest": "/api/button-response.js"
     },
     {
-      "src": "/",
-      "dest": "/api/index.js"
-    },
-    {
       "src": "/(.+\\.[a-z]+)$",
       "dest": "/public/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
