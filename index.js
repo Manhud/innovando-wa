@@ -22,10 +22,14 @@ const getOrderHandler = require('./api/get-order');
 const ordersPageHandler = require('./api/orders');
 const deleteOrderHandler = require('./api/delete-order');
 const getChatHandler = require('./api/get-chat');
+const markMessagesReadHandler = require('./api/mark-messages-read');
+const sendMessageHandler = require('./api/send-message');
 
 // Rutas de la API
 app.post('/api/webhook', webhookHandler);
 app.post('/api/button-response', buttonResponseHandler);
+app.post('/api/send-message', sendMessageHandler);
+app.post('/api/mark-messages-read', markMessagesReadHandler);
 
 // Nuevas rutas de API
 app.get('/api/get-orders', getOrdersHandler);

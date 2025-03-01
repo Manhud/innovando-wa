@@ -236,6 +236,7 @@ async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
           // Actualizar el estado del pedido
           const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
             updated_at: new Date(),
+            has_unread_messages: true, // Marcar con mensajes no leídos
             response_details: {
               button_id: buttonId,
               button_text: buttonText,
@@ -244,10 +245,12 @@ async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
           });
           
           console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${updatedOrder.status}`);
+          console.log(`Pedido marcado con mensajes no leídos`);
           console.log(`Detalles del pedido actualizado: ${JSON.stringify({
             id: updatedOrder.order_id,
             status: updatedOrder.status,
-            updated_at: updatedOrder.updated_at
+            updated_at: updatedOrder.updated_at,
+            has_unread_messages: updatedOrder.has_unread_messages
           })}`);
         } else {
           console.log(`No se encontraron pedidos asociados al número ${from}`);
@@ -291,6 +294,7 @@ async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
               // Actualizar el estado del pedido
               const updatedOrder = await orderService.updateOrderStatus(latestOrder.order_id, newStatus, {
                 updated_at: new Date(),
+                has_unread_messages: true, // Marcar con mensajes no leídos
                 response_details: {
                   button_id: buttonId,
                   button_text: buttonText,
@@ -300,6 +304,7 @@ async function handleButtonResponse(from, buttonId, buttonText, timestamp) {
               });
               
               console.log(`Pedido ${latestOrder.order_id} actualizado a estado: ${updatedOrder.status}`);
+              console.log(`Pedido marcado con mensajes no leídos`);
               orderFound = true;
               break;
             }
@@ -397,12 +402,10 @@ async function handleTextMessage(from, textMessage, timestamp) {
       
       console.log(`Pedido encontrado para asociar el mensaje: ${latestOrder.order_id}`);
       
-      // Actualizar el estado del pedido a RESPUESTA_RECIBIDA
-      await orderService.updateOrderStatus(latestOrder.order_id, "RESPUESTA_RECIBIDA", {
-        updated_at: new Date()
-      });
+      // Marcar el pedido con mensajes no leídos en lugar de cambiar el estado
+      await orderService.updateUnreadMessagesStatus(latestOrder.order_id, true);
       
-      console.log(`Pedido ${latestOrder.order_id} actualizado a estado: RESPUESTA_RECIBIDA`);
+      console.log(`Pedido ${latestOrder.order_id} marcado con mensajes no leídos`);
     } else {
       console.log(`No se encontraron pedidos asociados al número ${from}`);
     }
