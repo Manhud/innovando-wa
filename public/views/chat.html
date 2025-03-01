@@ -96,10 +96,32 @@
         }
         .message-input {
             margin-top: 1rem;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
         .loading {
             display: none;
             margin-left: 1rem;
+        }
+        .message-processing {
+            margin-top: 0.25rem;
+            font-style: italic;
+            color: #6c757d;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        .form-check {
+            margin-left: 0.5rem;
+        }
+        textarea.form-control {
+            resize: vertical;
+            min-height: 38px;
         }
         .no-messages {
             text-align: center;
@@ -145,8 +167,8 @@
         </div>
         
         <div class="message-input">
-            <div class="input-group">
-                <input type="text" id="messageInput" class="form-control" placeholder="Escribe un mensaje...">
+            <div class="input-group mb-2">
+                <textarea id="messageInput" class="form-control" placeholder="Escribe un mensaje..." rows="2"></textarea>
                 <button id="sendMessageBtn" class="btn btn-primary">
                     <i class="bi bi-send"></i> Enviar
                 </button>
