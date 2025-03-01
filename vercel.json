@@ -12,32 +12,39 @@
   ],
   "routes": [
     {
-      "src": "/api/get-orders",
-      "dest": "/api/get-orders.js"
-    },
-    {
-      "src": "/api/get-order",
-      "dest": "/api/get-order.js"
-    },
-    {
-      "src": "/api/orders",
-      "dest": "/api/get-orders.js"
-    },
-    {
-      "src": "/api/orders/(.*)",
-      "dest": "/api/get-order.js?orderId=$1"
-    },
-    {
-      "src": "/orders",
-      "dest": "/api/orders.js"
-    },
-    {
       "src": "/api/webhook",
+      "methods": ["GET", "POST", "OPTIONS"],
       "dest": "/api/webhook.js"
     },
     {
       "src": "/api/button-response",
+      "methods": ["GET", "POST", "OPTIONS"],
       "dest": "/api/button-response.js"
+    },
+    {
+      "src": "/api/get-orders",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/get-orders.js"
+    },
+    {
+      "src": "/api/get-order",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/get-order.js"
+    },
+    {
+      "src": "/api/orders",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/get-orders.js"
+    },
+    {
+      "src": "/api/orders/(.*)",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/get-order.js?orderId=$1"
+    },
+    {
+      "src": "/orders",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/orders.js"
     },
     {
       "src": "/(.+\\.[a-z]+)$",
