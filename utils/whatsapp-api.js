@@ -6,10 +6,13 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
  * @returns {string} - Número formateado
  */
 function formatPhoneNumber(phone) {
-  if (!phone) return '';
+  if (!phone || phone === null) {
+    console.error('Error: Número de teléfono nulo o vacío');
+    return '';
+  }
   
   // Eliminar todos los caracteres no numéricos
-  let cleaned = phone.replace(/\D/g, '');
+  let cleaned = phone.toString().replace(/\D/g, '');
   
   // Asegurarse de que tenga el prefijo de país (57 para Colombia)
   if (!cleaned.startsWith('57') && cleaned.length >= 10) {

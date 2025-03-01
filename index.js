@@ -21,6 +21,7 @@ const getOrdersHandler = require('./api/get-orders');
 const getOrderHandler = require('./api/get-order');
 const ordersPageHandler = require('./api/orders');
 const deleteOrderHandler = require('./api/delete-order');
+const getChatHandler = require('./api/get-chat');
 
 // Rutas de la API
 app.post('/api/webhook', webhookHandler);
@@ -31,12 +32,19 @@ app.get('/api/get-orders', getOrdersHandler);
 app.get('/api/get-order', getOrderHandler);
 app.get('/orders', ordersPageHandler);
 app.delete('/api/delete-order', deleteOrderHandler);
+app.get('/api/get-chat', getChatHandler);
 
 // Rutas de compatibilidad para mantener las rutas antiguas funcionando
 app.get('/api/orders', getOrdersHandler);
 app.get('/api/orders/:orderId', (req, res) => {
   req.query.orderId = req.params.orderId;
   getOrderHandler(req, res);
+});
+
+// Ruta para manejar URLs incorrectas con /public/
+app.get('/public/*', (req, res) => {
+  // Redirigir a la página de redirección
+  res.sendFile(path.join(__dirname, 'public', 'redirect.html'));
 });
 
 // Ruta de verificación

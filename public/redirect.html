@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redireccionando...</title>
+    <script>
+        // Función para obtener parámetros de la URL
+        function getQueryParams() {
+            const params = {};
+            const queryString = window.location.search.substring(1);
+            const pairs = queryString.split('&');
+            
+            for (const pair of pairs) {
+                const [key, value] = pair.split('=');
+                if (key) {
+                    params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+                }
+            }
+            
+            return params;
+        }
+        
+        // Función para redirigir a la URL correcta
+        function redirect() {
+            const path = window.location.pathname;
+            
+            // Verificar si la URL contiene "/public/"
+            if (path.includes('/public/')) {
+                // Obtener la parte de la ruta después de "/public/"
+                const correctPath = path.substring(path.indexOf('/public/') + 7);
+                
+                // Obtener los parámetros de consulta
+                const params = getQueryParams();
+                let queryString = '';
+                
+                // Reconstruir la cadena de consulta
+                if (Object.keys(params).length > 0) {
+                    queryString = '?' + Object.entries(params)
+                        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+                        .join('&');
+                }
+                
+                // Agregar un parámetro de versión para evitar el caché
+                queryString += queryString ? '&v=1.1' : '?v=1.1';
+                
+                // Construir la URL correcta
+                const correctUrl = '/' + correctPath + queryString;
+                
+                console.log(`Redirigiendo de ${path} a ${correctUrl}`);
+                
+                // Redirigir a la URL correcta
+                window.location.href = correctUrl;
+            } else {
+                // Si no contiene "/public/", redirigir a la página principal
+                window.location.href = '/orders';
+            }
+        }
+        
+        // Redirigir cuando se cargue la página
+        window.onload = redirect;
+    </script>
+</head>
+<body>
+    <div style="text-align: center; margin-top: 50px;">
+        <h2>Redireccionando...</h2>
+        <p>Si no eres redirigido automáticamente, <a href="/orders">haz clic aquí</a>.</p>
+    </div>
+</body>
+</html> 
